@@ -1,9 +1,9 @@
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const Page = () => {
   return (
-    <div>
-      <div className={cn("text-3xl font-bold underline")}>Nodebase DEV</div>
+    <div className="min-h-screen min-w-screen flex items-center justify-center">
+      <Button variant="outline">Click me</Button>
     </div>
   );
 };
