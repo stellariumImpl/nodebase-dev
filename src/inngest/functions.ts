@@ -1,25 +1,63 @@
 import prisma from "@/lib/prisma";
 import { inngest } from "./client";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createDeepSeek } from "@ai-sdk/deepseek";
+import { generateText } from "ai";
 
-export const helloWorld = inngest.createFunction(
-  { id: "hello-world" },
-  { event: "test/hello.world" },
+const google = createGoogleGenerativeAI();
+const openai = createOpenAI();
+const anthropic = createAnthropic();
+const deepseek = createDeepSeek();
+
+export const execute = inngest.createFunction(
+  { id: "execute-ai" },
+  { event: "execute/ai" },
   async ({ event, step }) => {
-    // Fetching the video
-    await step.sleep("fetching-the-video", "5s");
+    await step.sleep("pretend thinking", "5s");
+    const { steps: geminiSteps } = await step.ai.wrap(
+      "gemini-generate-text",
+      generateText,
+      {
+        model: google("gemini-2.5-flash"),
+        system: "You are a helpful assistant",
+        prompt: "What is 2+2?",
+      }
+    );
+    const { steps: openaiSteps } = await step.ai.wrap(
+      "openai-generate-text",
+      generateText,
+      {
+        model: openai("gpt-3.5-turbo"),
+        system: "You are a helpful assistant",
+        prompt: "What is 2+2?",
+      }
+    );
+    const { steps: anthropicSteps } = await step.ai.wrap(
+      "anthropic-generate-text",
+      generateText,
+      {
+        model: anthropic("claude-3-5-sonnet-20241022"),
+        system: "You are a helpful assistant",
+        prompt: "What is 2+2?",
+      }
+    );
+    const { steps: deepseekSteps } = await step.ai.wrap(
+      "deepseek-generate-text",
+      generateText,
+      {
+        model: deepseek("deepseek-chat"),
+        system: "You are a helpful assistant",
+        prompt: "What is 2+2?",
+      }
+    );
 
-    // Transcribing the video
-    await step.sleep("transcribing-the-video", "5s");
-
-    // Sending transcription to AI
-    await step.sleep("sending-transcription-to-ai", "5s");
-
-    await step.run("create-workflow", () => {
-      return prisma.workflow.create({
-        data: {
-          name: "workflow-from-inngest",
-        },
-      });
-    });
+    return {
+      geminiSteps,
+      openaiSteps,
+      anthropicSteps,
+      deepseekSteps,
+    };
   }
 );
