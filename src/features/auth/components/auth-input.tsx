@@ -5,6 +5,12 @@
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
+/**
+ * Styled wrapper around the base Input component that applies authentication-form input styles.
+ *
+ * @param className - Additional CSS class names to merge with the component's default styles
+ * @returns The Input element with the composed `className` and all other props forwarded
+ */
 export function AuthInput({
   className,
   ...props
