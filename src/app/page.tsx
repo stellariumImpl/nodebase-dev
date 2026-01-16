@@ -7,6 +7,7 @@ const Page = async () => {
 
   const data = await caller.getUsers();
   return (
+    // TODO
     <div className="min-h-screen min-w-screen flex items-center justify-center flex-col gap-y-6">
       protected server component
       <div>{JSON.stringify(data, null, 2)}</div>

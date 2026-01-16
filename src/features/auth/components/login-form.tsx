@@ -9,8 +9,7 @@ import { z } from "zod";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+
 import {
   Form,
   FormField,
@@ -29,6 +28,8 @@ import {
 import { GalleryVerticalEnd } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { LoginRegisterButton } from "@/components/ui/self-design/login-register-button";
+import { AuthInput } from "./auth-input";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -50,8 +51,6 @@ export function LoginForm() {
   const isPending = form.formState.isSubmitting;
 
   const onSubmit = async (values: LoginFormValues) => {
-    // console.log(values);
-    // await auth logic...
     await authClient.signIn.email(
       {
         email: values.email,
@@ -102,7 +101,7 @@ export function LoginForm() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input
+                      <AuthInput
                         type="email"
                         placeholder="m@example.com"
                         {...field}
@@ -123,7 +122,7 @@ export function LoginForm() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} />
+                      <AuthInput type="password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -133,9 +132,13 @@ export function LoginForm() {
 
             {/* Submit */}
             <Field>
-              <Button disabled={isPending} type="submit" className="w-full">
+              <LoginRegisterButton
+                disabled={isPending}
+                type="submit"
+                className="w-full"
+              >
                 Login
-              </Button>
+              </LoginRegisterButton>
             </Field>
 
             {/* Or separator */}
@@ -172,15 +175,8 @@ export function LoginForm() {
       </Form>
 
       <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our{" "}
-        <a href="#" className="underline underline-offset-4">
-          Terms of Service
-        </a>{" "}
-        and{" "}
-        <a href="#" className="underline underline-offset-4">
-          Privacy Policy
-        </a>
-        .
+        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
+        and <a href="#">Privacy Policy</a>.
       </FieldDescription>
     </div>
   );
