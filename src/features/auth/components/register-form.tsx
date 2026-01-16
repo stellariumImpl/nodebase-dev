@@ -10,7 +10,6 @@ import { z } from "zod";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Form,
   FormField,
@@ -29,6 +28,7 @@ import {
 import { GalleryVerticalEnd } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { LoginRegisterButton } from "@/components/ui/self-design/login-register-button";
+import { AuthInput } from "./auth-input";
 
 const registerSchema = z
   .object({
@@ -114,7 +114,7 @@ export function RegisterForm() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input
+                      <AuthInput
                         type="email"
                         placeholder="m@example.com"
                         {...field}
@@ -136,7 +136,7 @@ export function RegisterForm() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} />
+                      <AuthInput type="password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -154,7 +154,7 @@ export function RegisterForm() {
                   <FormItem>
                     <FormLabel>Confirm password</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} />
+                      <AuthInput type="password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
