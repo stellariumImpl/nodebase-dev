@@ -55,3 +55,100 @@ const Page = () => {
      1. 用 dehydrate 传进来的缓存 rehydrate 成客户端的 queryClient；
      2. 所以 useSuspenseQuery 一上来就能在缓存里找到 getUsers 的数据；
      3. 几乎不需要再发请求，也不会出现 loading 闪烁。
+
+## 备份
+
+```typescript
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String?
+  posts Post[]
+}
+
+model Post {
+  id        Int     @id @default(autoincrement())
+  title     String
+  content   String?
+  published Boolean @default(false)
+  authorId  Int
+  author    User    @relation(fields: [authorId], references: [id])
+}
+```
+
+```typescript
+// import prisma from "@/lib/prisma";
+// import { caller } from "@/trpc/server"; // let the page as server component
+import { getQueryClient, trpc } from "@/trpc/server";
+import { Client } from "./client";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { Suspense } from "react";
+
+// "use client";
+// import { useTRPC } from "@/trpc/client";
+// import { useQuery } from "@tanstack/react-query";
+
+// Here we build a boundary between server components and client components
+// and we pass the dehydrated query client to the client component
+const Page = async () => {
+  // const Page = async () => {
+  // const users = await prisma.user.findMany();
+  // const users = await caller.getUsers(); // NOTE: import "server-only";
+  const queryClient = getQueryClient();
+  // leverage the speed of server to prefetch the data
+  void queryClient.prefetchQuery(trpc.getUsers.queryOptions());
+
+  // Here is the client way for tRPC
+  // const trpc = useTRPC();
+  // const { data: users } = useQuery(trpc.getUsers.queryOptions());
+  return (
+    <div className="min-h-screen min-w-screen flex items-center justify-center">
+      {/* {JSON.stringify(users)} */}
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <Suspense fallback={<p>Loading...</p>}>
+          <Client />
+        </Suspense>
+      </HydrationBoundary>
+    </div>
+  );
+};
+export default Page;
+```
+
+```typescript
+// COPY from page.tsx & MODIFY
+"use client";
+
+import { useTRPC } from "@/trpc/client";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+
+export const Client = () => {
+  // const Page = async () => {
+  // const users = await prisma.user.findMany();
+  // const users = await caller.getUsers(); // NOTE: import "server-only";
+  // Here is the client way for tRPC
+  const trpc = useTRPC();
+  //   const { data: users } = useQuery(trpc.getUsers.queryOptions());
+  const { data: users } = useSuspenseQuery(trpc.getUsers.queryOptions());
+  return (
+    <div className="min-h-screen min-w-screen flex items-center justify-center">
+      Client component: {JSON.stringify(users)}
+    </div>
+  );
+};
+```
