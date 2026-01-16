@@ -48,6 +48,11 @@ const registerSchema = z
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
+/**
+ * Renders the registration form used to create a new account, including email, password, and confirm password fields, social login placeholders, client-side validation, and submit handling that calls the authentication client.
+ *
+ * @returns A React element containing the registration form UI.
+ */
 export function RegisterForm() {
   const router = useRouter();
   const form = useForm<RegisterFormValues>({
