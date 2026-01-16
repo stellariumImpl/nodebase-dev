@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## 纯服务端组件
 
-## Getting Started
+一开始 page.tsx 是 服务器组件，直接 async 拉数据
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```typescript
+// 伪代码
+const Page = async () => {
+  const users = await prisma.user.findMany(); // 或 caller.getUsers()
+  return <div>{JSON.stringify(users)}</div>;
+};
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+在服务端渲染时就已经 await 拿到数据；浏览器拿到的 HTML 里已经有完整数据，所以首屏非常快；但这是纯 Server Component，不能用 useState/useEffect 之类的客户端 hook，交互能力有限。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 改成纯客户端
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+把 page.tsx 改成客户端组件，"use client" + useQuery（加载慢一些）
 
-## Learn More
+```typescript
+"use client";
 
-To learn more about Next.js, take a look at the following resources:
+const Page = () => {
+  const trpc = useTRPC();
+  const { data: users } = useQuery(trpc.getUsers.queryOptions());
+  return <div>{JSON.stringify(users)}</div>;
+};
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+变化是：
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- page.tsx 顶部加了 "use client"，整个页面变成 Client Component；
+- 可以用 useTRPC、useQuery、useEffect 等各种 hook；
+- 但数据获取逻辑现在在 浏览器端执行： 1. 首屏先渲染一个没有数据的空页面（或者 loading） 2. 等 JS bundle 下载完、React 启动后 3. useQuery 再去发请求拿数据
 
-## Deploy on Vercel
+所以会感觉：加载变慢了，首屏会有一段“白屏/加载”的时间。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 现在的做法是：服务端渲染 + 客户端渲染
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+用 Hydration + React Query 结合两者优点
+
+1. Server 端创建一个 React Query 的 queryClient
+   getQueryClient() 返回在服务端用的 QueryClient，它和 tRPC 的 server helper 绑在一起。
+2. 服务端提前执行 prefetchQuery
+   `void queryClient.prefetchQuery(trpc.getUsers.queryOptions());`
+   - 跟 useQuery 是同一条 query（同一个 key）；
+   - 但这次是在 Node/服务端 提前把 getUsers 的数据查出来，放进 queryClient 的缓存里；
+   - 这一步利用了“服务端快、离数据库近”的优势。
+3. dehydrate(queryClient) 把服务端的缓存序列化
+   - queryClient 里有数据了，用 dehydrate 把数据序列化成 JSON，打包到 HTML 里。
+   - 这样客户端拿到 HTML 时，queryClient 里已经有数据了，不需要再发请求。
+4. client 端，客户端组件，可以用各种 hook；useTRPC() 拿到的是 在客户端的 tRPC+React Query 封装；
+   `useSuspenseQuery(trpc.getUsers.queryOptions())：`
+   - query key 和 server 那边 prefetchQuery 用的是 完全相同的 options；
+   - 因为外面包着 `<HydrationBoundary state={...}>`，React Query 在浏览器启动时会：
+     1. 用 dehydrate 传进来的缓存 rehydrate 成客户端的 queryClient；
+     2. 所以 useSuspenseQuery 一上来就能在缓存里找到 getUsers 的数据；
+     3. 几乎不需要再发请求，也不会出现 loading 闪烁。
