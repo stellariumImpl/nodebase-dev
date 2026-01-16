@@ -11,7 +11,6 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import {
   Form,
   FormField,
@@ -29,6 +28,7 @@ import {
 
 import { GalleryVerticalEnd } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { LoginRegisterButton } from "@/components/ui/self-design/login-register-button";
 
 const registerSchema = z
   .object({
@@ -63,8 +63,6 @@ export function RegisterForm() {
   const isPending = form.formState.isSubmitting;
 
   const onSubmit = async (values: RegisterFormValues) => {
-    // console.log(values);
-    // await auth logic...
     await authClient.signUp.email(
       {
         name: values.email,
@@ -166,9 +164,13 @@ export function RegisterForm() {
 
             {/* Submit */}
             <Field>
-              <Button disabled={isPending} type="submit" className="w-full">
+              <LoginRegisterButton
+                disabled={isPending}
+                type="submit"
+                className="w-full"
+              >
                 Sign up
-              </Button>
+              </LoginRegisterButton>
             </Field>
 
             {/* Or separator */}
@@ -205,15 +207,8 @@ export function RegisterForm() {
       </Form>
 
       <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our{" "}
-        <a href="#" className="underline underline-offset-4">
-          Terms of Service
-        </a>{" "}
-        and{" "}
-        <a href="#" className="underline underline-offset-4">
-          Privacy Policy
-        </a>
-        .
+        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
+        and <a href="#">Privacy Policy</a>.
       </FieldDescription>
     </div>
   );
