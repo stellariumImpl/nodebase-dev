@@ -3,6 +3,7 @@ import { baseProcedure, createTRPCRouter, protectedProcedure } from "../init";
 import prisma from "@/lib/prisma";
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
+import { TRPCError } from "@trpc/server";
 
 export const appRouter = createTRPCRouter({
   // even when i logout, i can still call this endpoint
