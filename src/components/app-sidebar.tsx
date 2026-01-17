@@ -25,6 +25,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "./ui/sidebar";
 
 // import { GalleryVerticalEnd } from "lucide-react";
@@ -32,6 +33,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { Logo } from "./logo";
 import { toast } from "sonner";
+import { useEffect } from "react";
 
 const menuItems = [
   {
@@ -57,11 +59,18 @@ const menuItems = [
 ];
 
 export const AppSidebar = () => {
+  const { isMobile, setOpenMobile } = useSidebar();
+
   // NOTE: self-modified, for signing out loader
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
+
+  // 任何路由变化都自动关闭 sidebar
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [pathname]);
 
   return (
     <Sidebar collapsible="icon">
@@ -109,7 +118,13 @@ export const AppSidebar = () => {
                     data-[active=true]:text-primary 
                     data-[active=true]:font-medium"
                     >
-                      <Link href={item.url} prefetch>
+                      <Link
+                        href={item.url}
+                        prefetch
+                        onClick={() => {
+                          if (isMobile) setOpenMobile(false);
+                        }}
+                      >
                         <item.icon className="size-4" />
                         <span>{item.title}</span>
                       </Link>
