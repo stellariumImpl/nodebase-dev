@@ -109,7 +109,10 @@ export function RegisterForm() {
                 <div className="flex flex-col items-center gap-2">
                   <div className="flex size-8 items-center justify-center rounded-md">
                     {/* <GalleryVerticalEnd className="size-6" /> */}
-                    <Logo className="text-orange-500 dark:text-orange-400" />
+                    <Logo
+                      size={48}
+                      className="text-orange-500 dark:text-orange-400"
+                    />
                   </div>
                 </div>
                 <h1 className="text-xl font-bold">Welcome to Nodebase</h1>

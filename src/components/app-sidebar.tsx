@@ -30,7 +30,6 @@ import {
 // import { GalleryVerticalEnd } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
-import { ThemeSwitcher } from "./theme-switcher";
 import { Logo } from "./logo";
 import { toast } from "sonner";
 
@@ -66,29 +65,28 @@ export const AppSidebar = () => {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="flex flex-row items-center justify-between px-3 h-14">
-        {/* Left Logo / Name area */}
-        <div className="flex items-center flex-1 min-w-0">
-          <SidebarMenuItem className="flex-1 list-none">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
             <SidebarMenuButton
+              size="lg"
               asChild
-              className="w-full flex items-center gap-x-3 px-2 h-10 justify-start rounded-md hover:bg-accent/50 transition"
+              className="data-[state=collapsed]:p-0 data-[state=collapsed]:justify-center"
             >
               <Link href="/" prefetch>
-                <Logo className="text-orange-500 dark:text-orange-400" />
-
-                <span className="font-semibold text-sm truncate px-2">
-                  Nodebase
-                </span>
+                <div className="flex aspect-square size-7 items-center justify-center rounded-md bg-orange-500">
+                  <Logo size={20} className="text-white dark:text-sidebar" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">Nodebase</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    Dev
+                  </span>
+                </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-        </div>
-
-        {/* Right Theme Switcher */}
-        <div className="ml-2 shrink-0">
-          <ThemeSwitcher />
-        </div>
+        </SidebarMenu>
       </SidebarHeader>
 
       <SidebarContent>
