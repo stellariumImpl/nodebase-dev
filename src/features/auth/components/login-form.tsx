@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -43,6 +44,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
   const router = useRouter();
+  const [isNavigating, setIsNavigating] = useState(false);
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -51,7 +53,14 @@ export function LoginForm() {
     },
   });
 
-  const isPending = form.formState.isSubmitting;
+  // NOTE: Actually, isPending not just depends on form.formState.isSubmitting
+  // 为了防止loader加载完后，还有短暂的时间留在form界面里，所以用isNavigating来控制loader的显示
+  // const isPending = form.formState.isSubmitting;
+  const isPending = form.formState.isSubmitting || isNavigating;
+  // NOTE: prefetch the home page to reduce the time to the home page
+  useEffect(() => {
+    router.prefetch("/");
+  }, [router]);
 
   const onSubmit = async (values: LoginFormValues) => {
     await authClient.signIn.email(
@@ -62,12 +71,15 @@ export function LoginForm() {
       },
       {
         onSuccess: () => {
-          router.push("/");
+          // router.push("/");
+          setIsNavigating(true);
+          router.replace("/");
         },
         onError: (ctx) => {
+          setIsNavigating(false);
           toast.error(ctx.error.message);
         },
-      }
+      },
     );
   };
 
@@ -83,7 +95,10 @@ export function LoginForm() {
                 <div className="flex flex-col items-center gap-2">
                   <div className="flex size-8 items-center justify-center rounded-md">
                     {/* <GalleryVerticalEnd className="size-6" /> */}
-                    <Logo className="text-orange-500 dark:text-orange-400" />
+                    <Logo
+                      size={48}
+                      className="text-orange-500 dark:text-orange-400"
+                    />
                   </div>
                 </div>
                 <h1 className="text-xl font-bold">Welcome to Nodebase</h1>
