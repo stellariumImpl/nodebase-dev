@@ -10,6 +10,8 @@ import { z } from "zod";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
+
 import {
   Form,
   FormField,
@@ -25,10 +27,12 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 
-import { GalleryVerticalEnd } from "lucide-react";
+// import { GalleryVerticalEnd } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-import { LoginRegisterButton } from "@/components/ui/self-design/login-register-button";
+import { LoginRegisterButton } from "@/components/login-register-button";
 import { AuthInput } from "./auth-input";
+
+import { Loader } from "@/components/ui/loader";
 
 const registerSchema = z
   .object({
@@ -82,134 +86,138 @@ export function RegisterForm() {
   };
 
   return (
-    <div className="flex flex-col gap-6 mx-auto w-full max-w-sm sm:max-w-md">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <FieldGroup>
-            {/* Logo + Title */}
-            <div className="flex flex-col items-center gap-2 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex size-8 items-center justify-center rounded-md">
-                  <GalleryVerticalEnd className="size-6" />
+    <>
+      {isPending && <Loader variant="fullscreen" />}
+      <div className="flex flex-col gap-6 mx-auto w-full max-w-sm sm:max-w-md">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <FieldGroup>
+              {/* Logo + Title */}
+              <div className="flex flex-col items-center gap-2 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex size-8 items-center justify-center rounded-md">
+                    {/* <GalleryVerticalEnd className="size-6" /> */}
+                    <Logo className="text-orange-500 dark:text-orange-400" />
+                  </div>
                 </div>
+                <h1 className="text-xl font-bold">Welcome to Nodebase</h1>
+                <FieldDescription>
+                  Already have an account?{" "}
+                  <Link
+                    href="/login"
+                    className="font-medium underline underline-offset-4"
+                  >
+                    Sign in
+                  </Link>
+                </FieldDescription>
               </div>
-              <h1 className="text-xl font-bold">Welcome to Nodebase</h1>
-              <FieldDescription>
-                Already have an account?{" "}
-                <Link
-                  href="/login"
-                  className="font-medium underline underline-offset-4"
+
+              {/* Email */}
+              <Field>
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <AuthInput
+                          type="email"
+                          placeholder="m@example.com"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </Field>
+
+              {/* Password */}
+              <Field>
+                <FormField
+                  control={form.control}
+                  name="password"
+                  rules={{ deps: ["confirmPassword"] }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <AuthInput type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </Field>
+
+              {/* Confirm Password */}
+              <Field>
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  rules={{ deps: ["password"] }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm password</FormLabel>
+                      <FormControl>
+                        <AuthInput type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </Field>
+
+              {/* Submit */}
+              <Field>
+                <LoginRegisterButton
+                  disabled={isPending}
+                  type="submit"
+                  className="w-full"
                 >
-                  Sign in
-                </Link>
-              </FieldDescription>
-            </div>
+                  Sign up
+                </LoginRegisterButton>
+              </Field>
 
-            {/* Email */}
-            <Field>
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <AuthInput
-                        type="email"
-                        placeholder="m@example.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </Field>
+              {/* Or separator */}
+              <FieldSeparator>Or</FieldSeparator>
 
-            {/* Password */}
-            <Field>
-              <FormField
-                control={form.control}
-                name="password"
-                rules={{ deps: ["confirmPassword"] }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <AuthInput type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </Field>
+              {/* Social Buttons */}
+              <Field className="grid gap-4 sm:grid-cols-2">
+                <Button
+                  disabled={isPending}
+                  onClick={() => {}}
+                  variant="outline"
+                  size="lg"
+                  className="w-full relative font-medium pl-10"
+                  type="button"
+                >
+                  <FcGoogle className="size-5 absolute left-3" />
+                  Continue with Google
+                </Button>
 
-            {/* Confirm Password */}
-            <Field>
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                rules={{ deps: ["password"] }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm password</FormLabel>
-                    <FormControl>
-                      <AuthInput type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </Field>
+                <Button
+                  disabled={isPending}
+                  onClick={() => {}}
+                  variant="outline"
+                  size="lg"
+                  className="w-full relative font-medium pl-10"
+                  type="button"
+                >
+                  <FaGithub className="size-5 absolute left-3" />
+                  Continue with Github
+                </Button>
+              </Field>
+            </FieldGroup>
+          </form>
+        </Form>
 
-            {/* Submit */}
-            <Field>
-              <LoginRegisterButton
-                disabled={isPending}
-                type="submit"
-                className="w-full"
-              >
-                Sign up
-              </LoginRegisterButton>
-            </Field>
-
-            {/* Or separator */}
-            <FieldSeparator>Or</FieldSeparator>
-
-            {/* Social Buttons */}
-            <Field className="grid gap-4 sm:grid-cols-2">
-              <Button
-                disabled={isPending}
-                onClick={() => {}}
-                variant="outline"
-                size="lg"
-                className="w-full relative font-medium pl-10"
-                type="button"
-              >
-                <FcGoogle className="size-5 absolute left-3" />
-                Continue with Google
-              </Button>
-
-              <Button
-                disabled={isPending}
-                onClick={() => {}}
-                variant="outline"
-                size="lg"
-                className="w-full relative font-medium pl-10"
-                type="button"
-              >
-                <FaGithub className="size-5 absolute left-3" />
-                Continue with Github
-              </Button>
-            </Field>
-          </FieldGroup>
-        </form>
-      </Form>
-
-      <FieldDescription className="px-6 text-center">
+        {/* <FieldDescription className="px-6 text-center">
         By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
         and <a href="#">Privacy Policy</a>.
-      </FieldDescription>
-    </div>
+      </FieldDescription> */}
+      </div>
+    </>
   );
 }
