@@ -1,182 +1,119 @@
-## 纯服务端组件
+> “loading 动画结束 → 还停在 form 页约 1 秒 → 然后才跳到主页”
 
-一开始 page.tsx 是 服务器组件，直接 async 拉数据
+**说明：不是动画卡顿，而是跳转触发得晚**
 
-```typescript
-// 伪代码
-const Page = async () => {
-  const users = await prisma.user.findMany(); // 或 caller.getUsers()
-  return <div>{JSON.stringify(users)}</div>;
-};
+我们先不瞎猜，我们按层级逐步排查👇
+
+---
+
+# ✅ **先明确问题发生在哪个阶段**
+
+登录流程一般是：
+
+```
+点击 Login → authClient.signIn → 后端验证 → 设置 cookie/session → resolve Promise → 前端 router.push("/")
 ```
 
-在服务端渲染时就已经 await 拿到数据；浏览器拿到的 HTML 里已经有完整数据，所以首屏非常快；但这是纯 Server Component，不能用 useState/useEffect 之类的客户端 hook，交互能力有限。
+你的延迟发生在：
 
-## 改成纯客户端
+✔ login promise resolve **之后**
+✔ router.push("/") **之前或途中**
 
-把 page.tsx 改成客户端组件，"use client" + useQuery（加载慢一些）
+所以问题大概率出在两个地方：
 
-```typescript
-"use client";
+---
 
-const Page = () => {
-  const trpc = useTRPC();
-  const { data: users } = useQuery(trpc.getUsers.queryOptions());
-  return <div>{JSON.stringify(users)}</div>;
-};
-```
+# 🧩 **可能原因 1：`onSuccess` 回调执行太晚**
 
-变化是：
+你的代码：
 
-- page.tsx 顶部加了 "use client"，整个页面变成 Client Component；
-- 可以用 useTRPC、useQuery、useEffect 等各种 hook；
-- 但数据获取逻辑现在在 浏览器端执行： 1. 首屏先渲染一个没有数据的空页面（或者 loading） 2. 等 JS bundle 下载完、React 启动后 3. useQuery 再去发请求拿数据
-
-所以会感觉：加载变慢了，首屏会有一段“白屏/加载”的时间。
-
-## 现在的做法是：服务端渲染 + 客户端渲染
-
-用 Hydration + React Query 结合两者优点
-
-1. Server 端创建一个 React Query 的 queryClient
-   getQueryClient() 返回在服务端用的 QueryClient，它和 tRPC 的 server helper 绑在一起。
-2. 服务端提前执行 prefetchQuery
-   `void queryClient.prefetchQuery(trpc.getUsers.queryOptions());`
-   - 跟 useQuery 是同一条 query（同一个 key）；
-   - 但这次是在 Node/服务端 提前把 getUsers 的数据查出来，放进 queryClient 的缓存里；
-   - 这一步利用了“服务端快、离数据库近”的优势。
-3. dehydrate(queryClient) 把服务端的缓存序列化
-   - queryClient 里有数据了，用 dehydrate 把数据序列化成 JSON，打包到 HTML 里。
-   - 这样客户端拿到 HTML 时，queryClient 里已经有数据了，不需要再发请求。
-4. client 端，客户端组件，可以用各种 hook；useTRPC() 拿到的是 在客户端的 tRPC+React Query 封装；
-   `useSuspenseQuery(trpc.getUsers.queryOptions())：`
-   - query key 和 server 那边 prefetchQuery 用的是 完全相同的 options；
-   - 因为外面包着 `<HydrationBoundary state={...}>`，React Query 在浏览器启动时会：
-     1. 用 dehydrate 传进来的缓存 rehydrate 成客户端的 queryClient；
-     2. 所以 useSuspenseQuery 一上来就能在缓存里找到 getUsers 的数据；
-     3. 几乎不需要再发请求，也不会出现 loading 闪烁。
-
-## 备份
-
-```typescript
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
-}
-
-datasource db {
-  provider = "postgresql"
-}
-
-model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
-  posts Post[]
-}
-
-model Post {
-  id        Int     @id @default(autoincrement())
-  title     String
-  content   String?
-  published Boolean @default(false)
-  authorId  Int
-  author    User    @relation(fields: [authorId], references: [id])
-}
-```
-
-```typescript
-// import prisma from "@/lib/prisma";
-// import { caller } from "@/trpc/server"; // let the page as server component
-import { getQueryClient, trpc } from "@/trpc/server";
-import { Client } from "./client";
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { Suspense } from "react";
-
-// "use client";
-// import { useTRPC } from "@/trpc/client";
-// import { useQuery } from "@tanstack/react-query";
-
-// Here we build a boundary between server components and client components
-// and we pass the dehydrated query client to the client component
-const Page = async () => {
-  // const Page = async () => {
-  // const users = await prisma.user.findMany();
-  // const users = await caller.getUsers(); // NOTE: import "server-only";
-  const queryClient = getQueryClient();
-  // leverage the speed of server to prefetch the data
-  void queryClient.prefetchQuery(trpc.getUsers.queryOptions());
-
-  // Here is the client way for tRPC
-  // const trpc = useTRPC();
-  // const { data: users } = useQuery(trpc.getUsers.queryOptions());
-  return (
-    <div className="min-h-screen min-w-screen flex items-center justify-center">
-      {/* {JSON.stringify(users)} */}
-      <HydrationBoundary state={dehydrate(queryClient)}>
-        <Suspense fallback={<p>Loading...</p>}>
-          <Client />
-        </Suspense>
-      </HydrationBoundary>
-    </div>
-  );
-};
-export default Page;
-```
-
-```typescript
-// COPY from page.tsx & MODIFY
-"use client";
-
-import { useTRPC } from "@/trpc/client";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-
-export const Client = () => {
-  // const Page = async () => {
-  // const users = await prisma.user.findMany();
-  // const users = await caller.getUsers(); // NOTE: import "server-only";
-  // Here is the client way for tRPC
-  const trpc = useTRPC();
-  //   const { data: users } = useQuery(trpc.getUsers.queryOptions());
-  const { data: users } = useSuspenseQuery(trpc.getUsers.queryOptions());
-  return (
-    <div className="min-h-screen min-w-screen flex items-center justify-center">
-      Client component: {JSON.stringify(users)}
-    </div>
-  );
-};
-```
-
-```typescript
-import prisma from "@/lib/prisma";
-import { inngest } from "./client";
-
-export const helloWorld = inngest.createFunction(
-  { id: "hello-world" },
-  { event: "test/hello.world" },
-  async ({ event, step }) => {
-    // Fetching the video
-    await step.sleep("fetching-the-video", "5s");
-
-    // Transcribing the video
-    await step.sleep("transcribing-the-video", "5s");
-
-    // Sending transcription to AI
-    await step.sleep("sending-transcription-to-ai", "5s");
-
-    await step.run("create-workflow", () => {
-      return prisma.workflow.create({
-        data: {
-          name: "workflow-from-inngest",
-        },
-      });
-    });
+```ts
+await authClient.signIn.email(
+  { ... },
+  {
+    onSuccess: () => {
+      router.push("/");
+    },
   }
 );
 ```
+
+关键点是：
+
+`authClient.signIn` **不会立即触发 onSuccess**
+
+它必须等待：
+
+1. session 写入数据库
+2. session cookie 写入 response
+3. Sentry / Inngest / TRPC Telemetry 采样
+4. 再 resolve
+5. 再执行 onSuccess
+
+**这些步骤通常需要 300ms - 1200ms**
+
+如果你的后端是 Vercel Edge / Serverless，延迟更明显。
+
+---
+
+# 🧩 **可能原因 2：`router.push("/")` 不是同步跳转**
+
+在 Next.js App Router 中：
+
+`router.push` 是 **React concurrent transition**，不会立刻刷新路由，而是：
+
+> 标记路由变化 → 等待一次渲染 → 然后切换 → 然后等待 Suspense → 再加载 page.tsx → 渲染布局
+
+这本身就会带来约 200~800ms 延迟。
+
+---
+
+# 🧩 **可能原因 3：主页数据加载阻塞跳转**
+
+你的主页现在应该包含：
+
+```
+protectedProcedure.query()
+React Query / TRPC / Suspense
+maybe Inngest polling 或 workflow fetch
+```
+
+第一次进入 `/workflows` 或 `/dashboard` 时：
+
+TRPC 会执行：
+
+```
+getWorkflows
+getCredentials
+getExecutions
+```
+
+会阻塞 UI 渲染，延迟跳转。
+
+---
+
+# 🧩 **可能原因 4：BetterAuth session validation**
+
+BetterAuth（或 Clerk / Auth0 / NextAuth）都会在第一次 client render 时执行：
+
+```
+auth.api.getSession()
+```
+
+这一步意味着：
+
+客户端登陆后第一次进入 protected 页面时 → 必须从 server fetch session
+
+网络延迟又 ~200–1000ms
+
+---
+
+# 🧩 **可能原因 5：Pre-fetch 没开启**
+
+如果登陆后跳转 `/` 而 `/` 的 page.tsx 没有预加载，则需要：
+
+```
+下载页面 bundle → hydrate → 执行 hooks → 请求数据 → 渲染
+```
+
+默认会慢。

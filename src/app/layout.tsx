@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TRPCReactProvider } from "@/trpc/client";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeInjector } from "@/components/theme-injector";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,10 +26,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // NOTE: self-modified, 避免 SSR 和客户端主题不一致时警告 + 闪烁
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* NOTE: self-modified, 避免闪白 / 闪暗 */}
+        <ThemeInjector />
         <TRPCReactProvider>
           {children}
           <Toaster />
