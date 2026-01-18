@@ -465,7 +465,7 @@
   h4,
   h5,
   h6 {
-    font-family: var(--font-ovo), serif;
+    font-family: var(--font-alegreya), serif;
   }
 }
 
@@ -490,5 +490,10 @@
   /* 用于次要标题或特别的卡片标题，比较可爱/有人情味 */
   .font-ovo {
     font-family: var(--font-ovo), serif;
+  }
+
+  /* 文学阅读风：适合小说、长篇文章、有人情味的叙述 */
+  .font-alegreya {
+    font-family: var(--font-alegreya), serif;
   }
 }
