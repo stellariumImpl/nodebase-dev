@@ -14,6 +14,7 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
+import { Hint } from "@/components/hint";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -99,27 +100,47 @@ export const AppSidebar = () => {
           </div>
         ) : (
           <>
-            <button
-              onMouseEnter={() => isCollapsed && setHoveringLogo(true)}
-              onMouseLeave={() => setHoveringLogo(false)}
-              onClick={() => isCollapsed && setOpen(true)}
-              className={cn(
-                "flex items-center justify-center",
-                "h-7 w-7 shrink-0 rounded-md",
-                "text-foreground",
-                "transition-colors select-none",
-                "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              )}
-            >
-              {isCollapsed && hoveringLogo ? (
-                <ChevronRight className="size-4" strokeWidth={2} />
-              ) : (
-                <Logo size={16} />
-              )}
-            </button>
+            {/* 1. 外层容器：用于排列 Logo 和 标题 */}
+            <div className="flex items-center gap-2">
+              <Hint
+                label={isCollapsed ? "Expand Sidebar" : ""}
+                side="right"
+                align="center"
+              >
+                <button
+                  onMouseEnter={() => isCollapsed && setHoveringLogo(true)}
+                  onMouseLeave={() => setHoveringLogo(false)}
+                  onClick={() => isCollapsed && setOpen(true)}
+                  className={cn(
+                    "flex items-center justify-center",
+                    "h-7 w-7 shrink-0 rounded-md", // shrink-0 防止被压缩
+                    "text-foreground",
+                    "transition-colors select-none",
+                    "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  )}
+                >
+                  {isCollapsed && hoveringLogo ? (
+                    <ChevronRight className="size-4" strokeWidth={2} />
+                  ) : (
+                    <Logo size={16} />
+                  )}
+                </button>
+              </Hint>
 
-            {isExpanded && <SidebarTrigger className="ml-auto" />}
+              {/* 2. 新增：标题 (仅在展开时显示) */}
+              {!isCollapsed && (
+                <span className="font-bold text-sm truncate transition-all duration-200">
+                  Nodebase
+                </span>
+              )}
+            </div>
+
+            {isExpanded && (
+              <Hint label="Collapse Sidebar" side="right" align="start">
+                <SidebarTrigger className="ml-auto" />
+              </Hint>
+            )}
           </>
         )}
       </SidebarHeader>

@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Ovo,
+  Libre_Baskerville,
+  Lora,
+  Rufina,
+} from "next/font/google";
 import "./globals.css";
 import { TRPCReactProvider } from "@/trpc/client";
 import { Toaster } from "@/components/ui/sonner";
@@ -13,6 +20,36 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// 配置 Ovo
+const ovo = Ovo({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-ovo",
+});
+
+// 配置 Lora (通常用于正文，阅读感极佳)
+const lora = Lora({
+  subsets: ["latin"],
+  variable: "--font-lora", // 定义变量名
+  display: "swap",
+});
+
+// 配置 Rufina (通常用于标题，非常有设计感)
+const rufina = Rufina({
+  weight: ["400", "700"], // Rufina 必须指定字重
+  subsets: ["latin"],
+  variable: "--font-rufina", // 定义变量名
+  display: "swap",
+});
+
+// 配置 Baskerville
+const baskerville = Libre_Baskerville({
+  weight: ["400", "700"], // 必须指定字重，Baskerville 通常用 400(常规) 和 700(粗体)
+  subsets: ["latin"],
+  variable: "--font-baskerville", // 定义 CSS 变量名
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -29,7 +66,7 @@ export default function RootLayout({
     // NOTE: self-modified, 避免 SSR 和客户端主题不一致时警告 + 闪烁
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${ovo.variable} ${baskerville.variable} ${lora.variable} ${rufina.variable}antialiased`}
       >
         {/* NOTE: self-modified, 避免闪白 / 闪暗 */}
         <ThemeInjector />
