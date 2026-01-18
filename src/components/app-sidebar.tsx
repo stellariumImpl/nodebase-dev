@@ -1,8 +1,9 @@
 "use client";
 
 import { Loader } from "@/components/ui/loader";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
+import { Button } from "./ui/button";
 import {
   CreditCardIcon,
   FolderOpenIcon,
@@ -10,9 +11,10 @@ import {
   KeyIcon,
   LogOutIcon,
   StarIcon,
+  ChevronRight,
+  X,
 } from "lucide-react";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -26,76 +28,100 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
+  SidebarTrigger,
 } from "./ui/sidebar";
-
-// import { GalleryVerticalEnd } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
 import { Logo } from "./logo";
 import { toast } from "sonner";
-import { useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { useHasActiveSubscription } from "@/features/subscriptions/hooks/use-subscription";
 
 const menuItems = [
   {
     title: "Workflows",
     items: [
-      {
-        title: "Workflows",
-        icon: FolderOpenIcon,
-        url: "/workflows",
-      },
-      {
-        title: "Credentials",
-        icon: KeyIcon,
-        url: "/credentials",
-      },
-      {
-        title: "Executions",
-        icon: HistoryIcon,
-        url: "/executions",
-      },
+      { title: "Workflows", icon: FolderOpenIcon, url: "/workflows" },
+      { title: "Credentials", icon: KeyIcon, url: "/credentials" },
+      { title: "Executions", icon: HistoryIcon, url: "/executions" },
     ],
   },
 ];
 
 export const AppSidebar = () => {
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { state, isMobile, setOpen, setOpenMobile } = useSidebar();
+  const isExpanded = state === "expanded";
+  const isCollapsed = state === "collapsed";
 
-  // NOTE: self-modified, for signing out loader
+  const [hoveringLogo, setHoveringLogo] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
 
-  // 任何路由变化都自动关闭 sidebar
   useEffect(() => {
     if (isMobile) setOpenMobile(false);
-  }, [pathname]);
+  }, [pathname, isMobile, setOpenMobile]);
+
+  const { hasActiveSubscription, isLoading } = useHasActiveSubscription();
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              asChild
-              className="data-[state=collapsed]:p-0 data-[state=collapsed]:justify-center"
+    <Sidebar
+      collapsible="icon"
+      className="transition-all duration-200 data-[state=collapsed]:w-14"
+    >
+      <SidebarHeader className="flex flex-row items-center h-12 px-2">
+        {isMobile ? (
+          <div className="flex w-full items-center justify-between px-2">
+            <div
+              className={cn(
+                "flex items-center gap-2",
+                "p-2 rounded-md",
+                "cursor-pointer",
+                "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                "transition-colors",
+              )}
+              onClick={() => router.push("/")}
             >
-              <Link href="/" prefetch>
-                <div className="flex aspect-square size-7 items-center justify-center rounded-md bg-orange-500">
-                  <Logo size={20} className="text-white dark:text-sidebar" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Nodebase</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    Dev
-                  </span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+              <Logo size={15} />
+              {/* modification: 在这里添加移动端标题 */}
+              <span className="font-semibold text-sm">Nodebase</span>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setOpenMobile(false)}
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <button
+              onMouseEnter={() => isCollapsed && setHoveringLogo(true)}
+              onMouseLeave={() => setHoveringLogo(false)}
+              onClick={() => isCollapsed && setOpen(true)}
+              className={cn(
+                "flex items-center justify-center",
+                "h-7 w-7 shrink-0 rounded-md",
+                "text-foreground",
+                "transition-colors select-none",
+                "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              )}
+            >
+              {isCollapsed && hoveringLogo ? (
+                <ChevronRight className="size-4" strokeWidth={2} />
+              ) : (
+                <Logo size={16} />
+              )}
+            </button>
+
+            {isExpanded && <SidebarTrigger className="ml-auto" />}
+          </>
+        )}
       </SidebarHeader>
 
       <SidebarContent>
@@ -103,75 +129,84 @@ export const AppSidebar = () => {
           <SidebarGroup key={group.title}>
             <SidebarGroupContent className="space-y-1">
               <SidebarMenu>
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      tooltip={item.title}
-                      isActive={
-                        item.url === "/"
-                          ? pathname === "/"
-                          : pathname.startsWith(item.url)
-                      }
-                      asChild
-                      className="gap-x-4 h-10 px-4 rounded-md 
-                    data-[active=true]:bg-primary/10 
-                    data-[active=true]:text-primary 
-                    data-[active=true]:font-medium"
-                    >
-                      <Link
-                        href={item.url}
-                        prefetch
-                        onClick={() => {
-                          if (isMobile) setOpenMobile(false);
-                        }}
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        tooltip={item.title}
+                        isActive={
+                          item.url === "/"
+                            ? pathname === "/"
+                            : pathname.startsWith(item.url)
+                        }
+                        asChild
+                        className="
+                          h-10 px-3 rounded-md gap-x-3
+                          data-[state=collapsed]:justify-center
+                        "
                       >
-                        <item.icon className="size-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                        <Link
+                          href={item.url}
+                          prefetch
+                          onClick={() => {
+                            if (isMobile) setOpenMobile(false);
+                          }}
+                        >
+                          <Icon className="w-5 h-5 shrink-0" />
+                          <span className="data-[state=collapsed]:hidden">
+                            {item.title}
+                          </span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
       </SidebarContent>
+
       <SidebarFooter>
         <SidebarMenu>
+          {!hasActiveSubscription && !isLoading && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className="h-10 px-3 gap-x-3"
+                tooltip="Upgrade to Pro"
+                onClick={() => authClient.checkout({ slug: "pro" })}
+              >
+                <StarIcon className="w-5 h-5" />
+                <span className="data-[state=collapsed]:hidden">
+                  Upgrade to Pro
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+
           <SidebarMenuItem>
             <SidebarMenuButton
-              tooltip="Upgrade to Pro"
-              className="gap-x-4 h-10 px-4"
-              onClick={() => {
-                alert("Upgrade to Pro function need to be done later");
-              }}
-            >
-              <StarIcon className="h-4 w-4 " />
-              <span>Upgrade to Pro</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
+              className="h-10 px-3 gap-x-3"
               tooltip="Billing portal"
-              className="gap-x-4 h-10 px-4"
-              onClick={() => {
-                alert("Billing portal function need to be done later");
-              }}
+              onClick={() => authClient.customer.portal()}
             >
-              <CreditCardIcon className="h-4 w-4 " />
-              <span>Billing portal</span>
+              <CreditCardIcon className="w-5 h-5" />
+              <span className="data-[state=collapsed]:hidden">
+                Billing portal
+              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
+              className="h-10 px-3 gap-x-3"
               tooltip="Sign out"
-              className="gap-x-4 h-10 px-4"
               onClick={() => {
                 setIsSigningOut(true);
                 authClient.signOut({
                   fetchOptions: {
                     onSuccess: () => {
-                      router.push("/login");
+                      window.location.href = "/login";
                     },
                     onError: () => {
                       setIsSigningOut(false);
@@ -181,12 +216,13 @@ export const AppSidebar = () => {
                 });
               }}
             >
-              <LogOutIcon className="h-4 w-4 " />
-              <span>Sign out</span>
+              <LogOutIcon className="w-5 h-5" />
+              <span className="data-[state=collapsed]:hidden">Sign out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
       {isSigningOut && <Loader variant="fullscreen" />}
     </Sidebar>
   );
