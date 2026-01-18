@@ -445,3 +445,55 @@
     stroke-dashoffset: -440;
   }
 }
+
+@layer base {
+  /* 全局默认设置：
+    让整个网站 (Body) 默认使用 Lora。
+    这样你不需要在每个 p 标签上写 font-lora。
+  */
+  body {
+    font-family: var(--font-baskerville), "Georgia", "Times New Roman", serif;
+  }
+
+  /* 全局标题设置 (可选)：
+    如果你希望所有 h1-h6 自动变成 Rufina，可以取消下面的注释。
+    这会形成很棒的“时尚杂志”感。
+  */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-alegreya), serif;
+  }
+}
+
+@layer utilities {
+  /* --- 字体工具类 --- */
+
+  /* 如果你想在局部强制回退到 Lora */
+  .font-lora {
+    font-family: var(--font-lora), serif;
+  }
+
+  /* 用于大标题，非常有艺术感 */
+  .font-rufina {
+    font-family: var(--font-rufina), serif;
+  }
+
+  /* 用于引用块 (Blockquote) 或 严肃的声明，非常有权威感 */
+  .font-baskerville {
+    font-family: var(--font-baskerville), serif;
+  }
+
+  /* 用于次要标题或特别的卡片标题，比较可爱/有人情味 */
+  .font-ovo {
+    font-family: var(--font-ovo), serif;
+  }
+
+  /* 文学阅读风：适合小说、长篇文章、有人情味的叙述 */
+  .font-alegreya {
+    font-family: var(--font-alegreya), serif;
+  }
+}

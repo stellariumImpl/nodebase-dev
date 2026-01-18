@@ -172,10 +172,10 @@ export function LoginForm() {
                   onClick={() => {}}
                   variant="outline"
                   size="lg"
-                  className="w-full relative font-medium"
+                  className="w-full font-medium text-sm gap-3"
                   type="button"
                 >
-                  <FcGoogle className="size-5 absolute left-3" />
+                  <FcGoogle className="size-5" />
                   Continue with Google
                 </Button>
 
@@ -184,10 +184,10 @@ export function LoginForm() {
                   onClick={() => {}}
                   variant="outline"
                   size="lg"
-                  className="w-full relative font-medium"
+                  className="w-full font-medium text-sm gap-3"
                   type="button"
                 >
-                  <FaGithub className="size-5 absolute left-3" />
+                  <FaGithub className="size-5" />
                   Continue with Github
                 </Button>
               </Field>
