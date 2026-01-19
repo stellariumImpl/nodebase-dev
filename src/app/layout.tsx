@@ -12,6 +12,7 @@ import "./globals.css";
 import { TRPCReactProvider } from "@/trpc/client";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeInjector } from "@/components/theme-injector";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -80,8 +81,10 @@ export default function RootLayout({
         {/* NOTE: self-modified, 避免闪白 / 闪暗 */}
         <ThemeInjector />
         <TRPCReactProvider>
-          {children}
-          <Toaster />
+          <NuqsAdapter>
+            {children}
+            <Toaster />
+          </NuqsAdapter>
         </TRPCReactProvider>
       </body>
     </html>

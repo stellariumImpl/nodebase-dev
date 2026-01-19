@@ -77,7 +77,7 @@ export const AppSidebar = () => {
             <div
               className={cn(
                 "flex items-center gap-2",
-                "p-2 rounded-md",
+                "p-1 rounded-md",
                 "cursor-pointer",
                 "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 "transition-colors",
@@ -103,14 +103,19 @@ export const AppSidebar = () => {
             {/* 1. 外层容器：用于排列 Logo 和 标题 */}
             <div className="flex items-center gap-2">
               <Hint
-                label={isCollapsed ? "Expand Sidebar" : ""}
-                side="right"
+                label={isCollapsed ? "Expand Sidebar" : "Home"}
+                side="bottom"
                 align="center"
               >
                 <button
                   onMouseEnter={() => isCollapsed && setHoveringLogo(true)}
                   onMouseLeave={() => setHoveringLogo(false)}
-                  onClick={() => isCollapsed && setOpen(true)}
+                  onClick={() => {
+                    // 1. 如果侧边栏折叠，先展开
+                    if (isCollapsed) setOpen(true);
+                    // 2. 否则是logo，跳转回主页
+                    else router.push("/");
+                  }}
                   className={cn(
                     "flex items-center justify-center",
                     "h-7 w-7 shrink-0 rounded-md", // shrink-0 防止被压缩
@@ -128,9 +133,11 @@ export const AppSidebar = () => {
                 </button>
               </Hint>
 
-              {/* 2. 新增：标题 (仅在展开时显示) */}
               {!isCollapsed && (
-                <span className="font-bold text-sm truncate transition-all duration-200">
+                <span
+                  onClick={() => router.push("/")}
+                  className="font-bold text-sm truncate transition-all duration-200 cursor-pointer"
+                >
                   Nodebase
                 </span>
               )}
