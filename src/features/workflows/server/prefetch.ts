@@ -1,6 +1,8 @@
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { prefetch, trpc } from "@/trpc/server";
 
+import { PAGINATION } from "@/config/constants";
+
 type Input = inferInput<typeof trpc.workflows.getMany>;
 
 /**
