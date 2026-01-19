@@ -99,11 +99,11 @@ export const EntityHeader = ({
     <div className="flex items-center justify-between gap-4">
       {/* --- 左侧：标题与描述 --- */}
       <div className="flex flex-col gap-1 text-left min-w-0">
-        <h1 className="text-xl md:text-2xl font-semibold tracking-tight truncate">
+        <h1 className="text-xl md:text-xl font-semibold tracking-tight truncate">
           {title}
         </h1>
         {description && (
-          <p className="text-sm md:text-base text-muted-foreground truncate">
+          <p className="text-sm text-muted-foreground truncate">
             {description}
           </p>
         )}

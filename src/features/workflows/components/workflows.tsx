@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDistanceToNow } from "date-fns";
 import {
   EntityHeader,
   EntityContainer,
@@ -13,6 +14,7 @@ import {
 } from "@/components/entity-components";
 import {
   useCreateWorkflow,
+  useRemoveWorkflow,
   useSuspenseWorkflows,
 } from "../hooks/use-workflows";
 import { useUpgradeModal } from "@/hooks/use-upgrade-modal";
@@ -51,6 +53,14 @@ export const WorkflowsList = () => {
 
   // 如果 search 有值且不为空字符串，说明用户正在搜索
   const isSearching = !!params.search && params.search.length > 0;
+
+  if (workflows.isFetching) {
+    return <WorkflowsLoading />;
+  }
+
+  if (workflows.data.items.length === 0) {
+    return <WorkflowsEmpty isSearching={isSearching} />;
+  }
 
   return (
     <EntityList
@@ -171,18 +181,27 @@ export const WorkflowsEmpty = ({ isSearching }: { isSearching?: boolean }) => {
 };
 
 export const WorkflowItem = ({ data }: { data: Workflow }) => {
+  const removeWorkflow = useRemoveWorkflow();
+  const handleRemove = () => {
+    removeWorkflow.mutate({ id: data.id });
+  };
   return (
     <EntityItem
       href={`/workflows/${data.id}`}
       title={data.name}
-      subtitle={<>Updated TODO &bull; Created TODO</>}
+      subtitle={
+        <>
+          Updated {formatDistanceToNow(data.updatedAt)} &bull;{" "}
+          {formatDistanceToNow(data.createdAt)}
+        </>
+      }
       image={
         <div className="size-8 flex items-center justify-center">
           <WorkflowIcon className="size-5 text-muted-foreground" />
         </div>
       }
-      onRemove={() => {}}
-      isRemoving={false}
+      onRemove={handleRemove}
+      isRemoving={removeWorkflow.isPending}
     />
   );
 };
