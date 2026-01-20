@@ -198,7 +198,7 @@ export const EntitySearch = ({
         <SearchIcon className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
       )}
       <Input
-        className="max-w-[220px] bg-background shadow-none border-border pl-8"
+        className="max-w-[260px] bg-background shadow-none border-border pl-8"
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
