@@ -7,6 +7,7 @@ import {
   Lora,
   Rufina,
   Alegreya,
+  Merriweather,
 } from "next/font/google";
 import "./globals.css";
 import { TRPCReactProvider } from "@/trpc/client";
@@ -54,6 +55,14 @@ const baskerville = Libre_Baskerville({
   display: "swap",
 });
 
+// 配置 Merriweather
+const merriweather = Merriweather({
+  weight: ["400", "700"], // merriweather 通常用 400(常规) 和 700(粗体)
+  subsets: ["latin"],
+  variable: "--font-merriweather", // 定义 CSS 变量名
+  display: "swap",
+});
+
 // 配置 Alegreya
 // 它是可变字体(Variable Font)，不需要指定 weight，除非你有特殊需求
 const alegreya = Alegreya({
@@ -76,7 +85,7 @@ export default function RootLayout({
     // NOTE: self-modified, 避免 SSR 和客户端主题不一致时警告 + 闪烁
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${ovo.variable} ${baskerville.variable} ${lora.variable} ${rufina.variable} ${alegreya.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${ovo.variable} ${baskerville.variable} ${lora.variable} ${rufina.variable} ${alegreya.variable} ${merriweather.variable} antialiased`}
       >
         {/* NOTE: self-modified, 避免闪白 / 闪暗 */}
         <ThemeInjector />
