@@ -156,15 +156,18 @@ export const EntityContainer = ({
 }: EntityContainerProps) => {
   return (
     <div className="h-full p-4 md:px-10 md:py-6">
+      {/* 1. 将外层的 gap-y-8 改为 gap-y-6 或者保留 gap-y-8，
+           主要通过改变内部结构来调整视觉距离 */}
       <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-y-8">
-        {/* 头部 */}
-        {header && <div className="flex-none">{header}</div>}
-
-        {/* 内容区域 */}
-        <div className="flex flex-col gap-y-4 flex-1">
+        {/* --- 顶部区域：包含 Header 和 Search --- */}
+        <div className="flex flex-col gap-y-4 flex-none">
+          {header}
           {search}
-          {children}
         </div>
+
+        {/* --- 内容列表区域 --- */}
+        {/* Search 移出去了，这里只放 children */}
+        <div className="flex flex-col gap-y-4 flex-1 min-h-0">{children}</div>
 
         {/* 分页 */}
         {pagination && <div className="flex-none">{pagination}</div>}
@@ -187,7 +190,7 @@ export const EntitySearch = ({
   isSearching = false,
 }: EntitySearchProps) => {
   return (
-    <div className="relative ml-auto">
+    <div className="relative">
       {/* 根据状态切换图标 */}
       {isSearching ? (
         <Loader2Icon className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground animate-spin" />
@@ -195,7 +198,7 @@ export const EntitySearch = ({
         <SearchIcon className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
       )}
       <Input
-        className="max-w-[200px] bg-background shadow-none border-border pl-8"
+        className="max-w-[220px] bg-background shadow-none border-border pl-8"
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
