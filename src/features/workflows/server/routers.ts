@@ -54,7 +54,7 @@ export const WorkflowsRouter = createTRPCRouter({
             source: z.string(),
             target: z.string(),
             sourceHandle: z.string().nullish(),
-            targethandle: z.string().nullish(),
+            targetHandle: z.string().nullish(),
           }),
         ),
       }),
@@ -92,7 +92,7 @@ export const WorkflowsRouter = createTRPCRouter({
             fromNodeId: edge.source,
             toNodeId: edge.target,
             fromOutput: edge.sourceHandle || "main",
-            toInput: edge.targethandle || "main",
+            toInput: edge.targetHandle || "main",
           })),
         });
 

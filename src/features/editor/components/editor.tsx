@@ -81,6 +81,10 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
     [],
   );
 
+  const isTouch =
+    typeof window !== "undefined" &&
+    ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
   return (
     <div className="size-full">
       <ReactFlow
@@ -95,6 +99,11 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
         proOptions={{
           hideAttribution: true,
         }}
+        snapGrid={[10, 10]}
+        snapToGrid
+        panOnScroll
+        panOnDrag
+        selectionOnDrag={false}
       >
         <Background />
         <Controls />
@@ -102,6 +111,16 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
         <Panel position="top-right">
           <AddNodeButton />
         </Panel>
+        {!isTouch && (
+          <Panel
+            position="top-left"
+            className="pointer-events-none select-none"
+          >
+            <div className="text-xs text-muted-foreground bg-background/70 backdrop-blur-sm px-2 py-1 rounded-md shadow-sm">
+              Select: Shift + Drag
+            </div>
+          </Panel>
+        )}
       </ReactFlow>
     </div>
   );
