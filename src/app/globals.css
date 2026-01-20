@@ -446,13 +446,45 @@
   }
 }
 
+.dark .react-flow__controls {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.dark .react-flow__controls button {
+  background-color: var(--card);
+  color: var(--foreground);
+  border-bottom: 1px solid var(--border);
+}
+
+.dark .react-flow__controls button:hover {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.dark .react-flow__minimap {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+}
+
+.dark .react-flow__minimap-mask {
+  fill: oklch(0.21 0 0 / 0.55);
+}
+
+.dark .react-flow__minimap-node {
+  fill: var(--muted-foreground);
+  stroke: var(--border);
+}
+
 @layer base {
   /* 全局默认设置：
-    让整个网站 (Body) 默认使用 Lora。
-    这样你不需要在每个 p 标签上写 font-lora。
+    让整个网站 (Body) 默认使用 merriweather,baskerville。
   */
   body {
-    font-family: var(--font-baskerville), "Georgia", "Times New Roman", serif;
+    font-family:
+      var(--font-merriweather), var(--font-baskerville), "Georgia",
+      "Times New Roman", serif;
   }
 
   /* 全局标题设置 (可选)：
@@ -495,5 +527,10 @@
   /* 文学阅读风：适合小说、长篇文章、有人情味的叙述 */
   .font-alegreya {
     font-family: var(--font-alegreya), serif;
+  }
+
+  /* resume-macther 用字 */
+  .font-merriweather {
+    font-family: var(--font-merriweather), serif;
   }
 }
