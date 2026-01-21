@@ -3,7 +3,8 @@
 import { ErrorView, LoadingView } from "@/components/entity-components";
 import { useSuspenseWorkflow } from "@/features/workflows/hooks/use-workflows";
 
-import { useState, useCallback } from "react";
+// import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   ReactFlow,
   applyNodeChanges,
@@ -23,8 +24,24 @@ import "@xyflow/react/dist/style.css";
 import { nodeComponents } from "@/config/node-components";
 
 import { AddNodeButton } from "./add-node-button";
-import { useSetAtom } from "jotai";
-import { editorAtom } from "../store/atoms";
+// import { useSetAtom } from "jotai";
+// import { editorAtom } from "../store/atoms";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import {
+  editorAtom,
+  lastSavedSnapshotAtom,
+  workflowSaveCountdownAtom,
+  workflowSaveStatusAtom,
+} from "../store/atoms";
+
+import { NodeType } from "@/generated/prisma/enums";
+import { ExecuteWorkflowButton } from "./execute-workflow-button";
+
+import { useUpdateWorkflow } from "@/features/workflows/hooks/use-workflows";
+import {
+  serializeWorkflowSnapshot,
+  toPersistedWorkflow,
+} from "../utils/workflow-serializer";
 
 export const EditorLoading = () => {
   return <LoadingView message="Loading editor..." />;
@@ -34,34 +51,34 @@ export const EditorError = () => {
   return <ErrorView message="Error loading editor" />;
 };
 
-// const initialNodes = [
-//   {
-//     id: "n1",
-//     position: { x: 0, y: 0 },
-//     data: { label: "Node 1" },
-//   },
-//   {
-//     id: "n2",
-//     position: { x: 0, y: 100 },
-//     data: { label: "Node 2" },
-//   },
-// ];
-
-// const initialEdges = [
-//   {
-//     id: "n1-n2",
-//     source: "n1",
-//     target: "n2",
-//   },
-// ];
-
 export const Editor = ({ workflowId }: { workflowId: string }) => {
   const { data: workflow } = useSuspenseWorkflow(workflowId);
 
   const setEditor = useSetAtom(editorAtom);
+  const saveStatus = useAtomValue(workflowSaveStatusAtom);
+  const setSaveStatus = useSetAtom(workflowSaveStatusAtom);
+  const setSaveCountdown = useSetAtom(workflowSaveCountdownAtom);
+  const [lastSavedSnapshot, setLastSavedSnapshot] = useAtom(
+    lastSavedSnapshotAtom,
+  );
 
   const [nodes, setNodes] = useState<Node[]>(workflow.nodes);
   const [edges, setEdges] = useState<Edge[]>(workflow.edges);
+
+  const saveWorkflow = useUpdateWorkflow({ showToast: false });
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAutoSaveAttemptSnapshotRef = useRef<string | null>(null);
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+
+  const clearCountdown = useCallback(() => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setSaveCountdown(null);
+  }, [setSaveCountdown]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) =>
@@ -85,6 +102,115 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
     typeof window !== "undefined" &&
     ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
+  const hasManualTrigger = useMemo(() => {
+    return nodes.some((node) => node.type === NodeType.MANUAL_TRIGGER);
+  }, [nodes]);
+
+  const snapshot = useMemo(() => {
+    return serializeWorkflowSnapshot(nodes, edges);
+  }, [nodes, edges]);
+
+  useEffect(() => {
+    const initialSnapshot = serializeWorkflowSnapshot(
+      workflow.nodes,
+      workflow.edges,
+    );
+    setLastSavedSnapshot(initialSnapshot);
+    setSaveStatus("saved");
+    clearCountdown();
+    lastAutoSaveAttemptSnapshotRef.current = null;
+  }, [
+    workflowId,
+    workflow.nodes,
+    workflow.edges,
+    clearCountdown,
+    setLastSavedSnapshot,
+    setSaveStatus,
+  ]);
+
+  useEffect(() => {
+    if (!lastSavedSnapshot) return;
+    if (snapshot === lastSavedSnapshot) {
+      if (saveStatus !== "saving") {
+        setSaveStatus("saved");
+      }
+      clearCountdown();
+      return;
+    }
+
+    if (saveStatus === "saving") {
+      clearCountdown();
+      return;
+    }
+
+    if (saveStatus !== "unsaved") {
+      setSaveStatus("unsaved");
+    }
+
+    if (!countdownIntervalRef.current) {
+      clearCountdown();
+      setSaveCountdown(5);
+      let secondsRemaining = 5;
+      countdownIntervalRef.current = setInterval(() => {
+        secondsRemaining -= 1;
+        setSaveCountdown(secondsRemaining > 0 ? secondsRemaining : null);
+        if (secondsRemaining <= 0) {
+          clearCountdown();
+        }
+      }, 1000);
+    }
+
+    if (snapshot === lastAutoSaveAttemptSnapshotRef.current) {
+      return;
+    }
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    const snapshotToSave = snapshot;
+    const { nodes: nodesToSave, edges: edgesToSave } = toPersistedWorkflow(
+      nodes,
+      edges,
+    );
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      setSaveStatus("saving");
+      clearCountdown();
+      lastAutoSaveAttemptSnapshotRef.current = snapshotToSave;
+      try {
+        await saveWorkflow.mutateAsync({
+          id: workflowId,
+          nodes: nodesToSave,
+          edges: edgesToSave,
+        });
+        setLastSavedSnapshot(snapshotToSave);
+        setSaveStatus("saved");
+      } catch {
+        setSaveStatus("failed");
+      }
+    }, 5000);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      clearCountdown();
+    };
+  }, [
+    snapshot,
+    lastSavedSnapshot,
+    nodes,
+    edges,
+    saveWorkflow,
+    clearCountdown,
+    setLastSavedSnapshot,
+    setSaveCountdown,
+    setSaveStatus,
+    saveStatus,
+    workflowId,
+  ]);
+
   return (
     <div className="size-full">
       <ReactFlow
@@ -107,10 +233,15 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
       >
         <Background />
         <Controls />
-        <MiniMap />
+        <MiniMap className="hidden sm:block" />
         <Panel position="top-right">
           <AddNodeButton />
         </Panel>
+        {hasManualTrigger && (
+          <Panel position="bottom-center">
+            <ExecuteWorkflowButton workflowId={workflowId} />
+          </Panel>
+        )}
         {!isTouch && (
           <Panel
             position="top-left"

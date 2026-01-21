@@ -20,8 +20,20 @@ import {
   useUpdateWorkflowName,
   useUpdateWorkflow,
 } from "@/features/workflows/hooks/use-workflows";
-import { useAtomValue } from "jotai";
-import { editorAtom } from "../store/atoms";
+// import { useAtomValue } from "jotai";
+// import { editorAtom } from "../store/atoms";
+
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  editorAtom,
+  lastSavedSnapshotAtom,
+  workflowSaveCountdownAtom,
+  workflowSaveStatusAtom,
+} from "../store/atoms";
+import {
+  serializeWorkflowSnapshot,
+  toPersistedWorkflow,
+} from "../utils/workflow-serializer";
 
 export const EditorNameInput = ({ workflowId }: { workflowId: string }) => {
   const { data: workflow } = useSuspenseWorkflow(workflowId);
@@ -121,20 +133,78 @@ export const EditorSaveButton = ({ workflowId }: { workflowId: string }) => {
   const editor = useAtomValue(editorAtom);
   const saveWorkflow = useUpdateWorkflow();
 
-  const handleSave = () => {
+  const saveCountdown = useAtomValue(workflowSaveCountdownAtom);
+  const saveStatus = useAtomValue(workflowSaveStatusAtom);
+  const setSaveStatus = useSetAtom(workflowSaveStatusAtom);
+  const setLastSavedSnapshot = useSetAtom(lastSavedSnapshotAtom);
+  const [showSavedStatus, setShowSavedStatus] = useState(false);
+
+  // const handleSave = () => {
+  const handleSave = async () => {
     if (!editor) return;
 
     const nodes = editor.getNodes();
     const edges = editor.getEdges();
 
-    saveWorkflow.mutate({
-      id: workflowId,
+    // saveWorkflow.mutate({
+    //   id: workflowId,
+    const snapshot = serializeWorkflowSnapshot(nodes, edges);
+    const { nodes: nodesToSave, edges: edgesToSave } = toPersistedWorkflow(
       nodes,
       edges,
-    });
+      // });
+    );
+
+    setSaveStatus("saving");
+    try {
+      await saveWorkflow.mutateAsync({
+        id: workflowId,
+        nodes: nodesToSave,
+        edges: edgesToSave,
+      });
+      setLastSavedSnapshot(snapshot);
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("failed");
+    }
   };
+
+  useEffect(() => {
+    if (saveStatus === "saved") {
+      setShowSavedStatus(true);
+      const timeout = setTimeout(() => {
+        setShowSavedStatus(false);
+      }, 2000);
+      return () => clearTimeout(timeout);
+    }
+
+    setShowSavedStatus(false);
+    return undefined;
+  }, [saveStatus]);
+
+  const statusLabel = (() => {
+    switch (saveStatus) {
+      case "unsaved":
+        return saveCountdown ? `Unsaved · ${saveCountdown}s` : "Unsaved";
+      case "saving":
+        return "Saving...";
+      case "saved":
+        return showSavedStatus ? "Saved" : null;
+      case "failed":
+        return "Save failed";
+      default:
+        return null;
+    }
+  })();
+
   return (
-    <div className="ml-auto">
+    // <div className="ml-auto">
+    <div className="ml-auto flex items-center gap-3">
+      {statusLabel ? (
+        <span className="text-xs text-muted-foreground" aria-live="polite">
+          {statusLabel}
+        </span>
+      ) : null}
       <Button size="sm" onClick={handleSave} disabled={saveWorkflow.isPending}>
         <SaveIcon className="size-4" />
         Save

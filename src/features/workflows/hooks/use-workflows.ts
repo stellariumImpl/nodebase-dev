@@ -96,20 +96,45 @@ export const useUpdateWorkflowName = () => {
  * Hook to update a workflow
  */
 
-export const useUpdateWorkflow = () => {
+// export const useUpdateWorkflow = () => {
+export const useUpdateWorkflow = ({ showToast = true } = {}) => {
   const queryClient = useQueryClient();
   const trpc = useTRPC();
   return useMutation(
     trpc.workflows.update.mutationOptions({
       onSuccess: (data) => {
-        toast.success(`Workflow ${data.name} saved successfully`);
+        // toast.success(`Workflow ${data.name} saved successfully`);
+        if (showToast) {
+          toast.success(`Workflow ${data.name} saved successfully`);
+        }
         queryClient.invalidateQueries(trpc.workflows.getMany.queryOptions({}));
         queryClient.invalidateQueries(
           trpc.workflows.getOne.queryOptions({ id: data.id }),
         );
       },
       onError: (error) => {
-        toast.error(`Failed to save workflow: ${error.message}`);
+        // toast.error(`Failed to save workflow: ${error.message}`);
+        if (showToast) {
+          toast.error(`Failed to save workflow: ${error.message}`);
+        }
+      },
+    }),
+  );
+};
+
+/**
+ * Hook to execute a workflow
+ */
+
+export const useExecuteWorkflow = () => {
+  const trpc = useTRPC();
+  return useMutation(
+    trpc.workflows.execute.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Workflow ${data.name} executed successfully`);
+      },
+      onError: (error) => {
+        toast.error(`Failed to execute workflow: ${error.message}`);
       },
     }),
   );
