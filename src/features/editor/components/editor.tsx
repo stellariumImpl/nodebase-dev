@@ -53,6 +53,55 @@ export const EditorError = () => {
   return <ErrorView message="Error loading editor" />;
 };
 
+const EditorSaveStatusPanel = () => {
+  const saveStatus = useAtomValue(workflowSaveStatusAtom);
+  const saveCountdown = useAtomValue(workflowSaveCountdownAtom);
+  const [showSavedStatus, setShowSavedStatus] = useState(false);
+
+  useEffect(() => {
+    if (saveStatus === "saved") {
+      setShowSavedStatus(true);
+      const timeout = setTimeout(() => {
+        setShowSavedStatus(false);
+      }, 2000);
+      return () => clearTimeout(timeout);
+    }
+
+    setShowSavedStatus(false);
+    return undefined;
+  }, [saveStatus]);
+
+  const statusLabel = (() => {
+    switch (saveStatus) {
+      case "unsaved":
+        return saveCountdown ? `Unsaved · ${saveCountdown}s` : "Unsaved";
+      case "saving":
+        return "Saving...";
+      case "saved":
+        return showSavedStatus ? "Saved" : null;
+      case "failed":
+        return "Save failed";
+      default:
+        return null;
+    }
+  })();
+
+  if (!statusLabel) {
+    return null;
+  }
+
+  return (
+    <Panel position="top-center" className="pointer-events-none select-none">
+      <div
+        className="text-xs text-muted-foreground bg-background/70 backdrop-blur-sm px-2 py-1 rounded-md shadow-sm"
+        aria-live="polite"
+      >
+        {statusLabel}
+      </div>
+    </Panel>
+  );
+};
+
 export const Editor = ({ workflowId }: { workflowId: string }) => {
   const { data: workflow } = useSuspenseWorkflow(workflowId);
 
@@ -272,6 +321,7 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
         <Background />
         <Controls />
         <MiniMap className="hidden sm:block" />
+        <EditorSaveStatusPanel />
         {isNarrow && showMiniMapOnNarrow && (
           <Panel
             position="bottom-right"

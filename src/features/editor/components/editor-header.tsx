@@ -27,7 +27,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import {
   editorAtom,
   lastSavedSnapshotAtom,
-  workflowSaveCountdownAtom,
+  // workflowSaveCountdownAtom,
   workflowSaveStatusAtom,
 } from "../store/atoms";
 import {
@@ -144,11 +144,11 @@ export const EditorSaveButton = ({ workflowId }: { workflowId: string }) => {
   const editor = useAtomValue(editorAtom);
   const saveWorkflow = useUpdateWorkflow();
 
-  const saveCountdown = useAtomValue(workflowSaveCountdownAtom);
-  const saveStatus = useAtomValue(workflowSaveStatusAtom);
+  // const saveCountdown = useAtomValue(workflowSaveCountdownAtom);
+  // const saveStatus = useAtomValue(workflowSaveStatusAtom);
   const setSaveStatus = useSetAtom(workflowSaveStatusAtom);
   const setLastSavedSnapshot = useSetAtom(lastSavedSnapshotAtom);
-  const [showSavedStatus, setShowSavedStatus] = useState(false);
+  // const [showSavedStatus, setShowSavedStatus] = useState(false);
 
   // const handleSave = () => {
   const handleSave = async () => {
@@ -180,42 +180,42 @@ export const EditorSaveButton = ({ workflowId }: { workflowId: string }) => {
     }
   };
 
-  useEffect(() => {
-    if (saveStatus === "saved") {
-      setShowSavedStatus(true);
-      const timeout = setTimeout(() => {
-        setShowSavedStatus(false);
-      }, 2000);
-      return () => clearTimeout(timeout);
-    }
+  // useEffect(() => {
+  //   if (saveStatus === "saved") {
+  //     setShowSavedStatus(true);
+  //     const timeout = setTimeout(() => {
+  //       setShowSavedStatus(false);
+  //     }, 2000);
+  //     return () => clearTimeout(timeout);
+  //   }
 
-    setShowSavedStatus(false);
-    return undefined;
-  }, [saveStatus]);
+  //   setShowSavedStatus(false);
+  //   return undefined;
+  // }, [saveStatus]);
 
-  const statusLabel = (() => {
-    switch (saveStatus) {
-      case "unsaved":
-        return saveCountdown ? `Unsaved · ${saveCountdown}s` : "Unsaved";
-      case "saving":
-        return "Saving...";
-      case "saved":
-        return showSavedStatus ? "Saved" : null;
-      case "failed":
-        return "Save failed";
-      default:
-        return null;
-    }
-  })();
+  // const statusLabel = (() => {
+  //   switch (saveStatus) {
+  //     case "unsaved":
+  //       return saveCountdown ? `Unsaved · ${saveCountdown}s` : "Unsaved";
+  //     case "saving":
+  //       return "Saving...";
+  //     case "saved":
+  //       return showSavedStatus ? "Saved" : null;
+  //     case "failed":
+  //       return "Save failed";
+  //     default:
+  //       return null;
+  //   }
+  // })();
 
   return (
     // <div className="ml-auto">
     <div className="ml-auto flex items-center gap-3">
-      {statusLabel ? (
+      {/* {statusLabel ? (
         <span className="text-xs text-muted-foreground" aria-live="polite">
           {statusLabel}
         </span>
-      ) : null}
+      ) : null} */}
       <Button
         className="h-7 w-18"
         size="sm"
