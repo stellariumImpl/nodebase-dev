@@ -68,6 +68,7 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
   const saveWorkflow = useUpdateWorkflow({ showToast: false });
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAutoSaveAttemptSnapshotRef = useRef<string | null>(null);
+  const lastWorkflowIdRef = useRef<string | null>(null);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   );
@@ -115,6 +116,16 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
       workflow.nodes,
       workflow.edges,
     );
+
+    const isNewWorkflow = lastWorkflowIdRef.current !== workflowId;
+    if (!isNewWorkflow) {
+      return;
+    }
+
+    lastWorkflowIdRef.current = workflowId;
+    setNodes(workflow.nodes);
+    setEdges(workflow.edges);
+
     setLastSavedSnapshot(initialSnapshot);
     setSaveStatus("saved");
     clearCountdown();

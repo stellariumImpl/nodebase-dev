@@ -130,9 +130,13 @@ export const HttpRequestDialog = ({
                 <FormItem>
                   <FormLabel>Variable Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="myAPIcall" {...field} />
+                    <Input
+                      className="truncate"
+                      placeholder="myAPIcall"
+                      {...field}
+                    />
                   </FormControl>
-                  <FormDescription>
+                  <FormDescription className="break-all">
                     Use this name to reference the result in other nodes:{""}
                     {`{{${watchVariableName}.httpResponse.data}}`}
                   </FormDescription>
