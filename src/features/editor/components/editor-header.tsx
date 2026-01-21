@@ -87,7 +87,7 @@ export const EditorNameInput = ({ workflowId }: { workflowId: string }) => {
 
   if (isEditing) {
     return (
-      <div className="flex flex-1 min-w-0">
+      <BreadcrumbItem className="flex flex-1 min-w-0">
         <Input
           disabled={updateWorkflow.isPending}
           ref={inputRef}
@@ -95,26 +95,37 @@ export const EditorNameInput = ({ workflowId }: { workflowId: string }) => {
           onChange={(e) => setName(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={handleSave}
-          className="h-7 px-2 w-full"
+          className="h-7 px-2 w-full min-w-0"
         />
-      </div>
+      </BreadcrumbItem>
     );
   }
 
   return (
-    <Breadcrumb
-      onClick={() => setIsEditing(true)}
-      className="cursor-pointer hover:text-foreground transition-colors"
-    >
-      {workflow.name}
-    </Breadcrumb>
+    // <Breadcrumb
+    //   onClick={() => setIsEditing(true)}
+    //   className="cursor-pointer hover:text-foreground transition-colors"
+    // >
+    //   {workflow.name}
+    // </Breadcrumb>
+    <BreadcrumbItem className="min-w-0">
+      <button
+        type="button"
+        onClick={() => setIsEditing(true)}
+        className="max-w-[40vw] sm:max-w-[50vw] md:max-w-[60vw] truncate text-foreground font-normal hover:text-foreground transition-colors"
+        aria-label="Edit workflow name"
+      >
+        {workflow.name}
+      </button>
+    </BreadcrumbItem>
   );
 };
 
 export const EditorBreadcrumbs = ({ workflowId }: { workflowId: string }) => {
   return (
     <Breadcrumb>
-      <BreadcrumbList>
+      {/* <BreadcrumbList> */}
+      <BreadcrumbList className="min-w-0 flex-nowrap">
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
             <Link prefetch href="/workflows">
@@ -205,7 +216,12 @@ export const EditorSaveButton = ({ workflowId }: { workflowId: string }) => {
           {statusLabel}
         </span>
       ) : null}
-      <Button size="sm" onClick={handleSave} disabled={saveWorkflow.isPending}>
+      <Button
+        className="h-7 w-18"
+        size="sm"
+        onClick={handleSave}
+        disabled={saveWorkflow.isPending}
+      >
         <SaveIcon className="size-4" />
         Save
       </Button>

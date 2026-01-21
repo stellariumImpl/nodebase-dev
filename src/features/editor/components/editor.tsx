@@ -43,6 +43,8 @@ import {
   toPersistedWorkflow,
 } from "../utils/workflow-serializer";
 
+import { TriggerHideMiniMapWhenNarrowButton } from "./trigger-hide-minimap-when-narrow-button";
+
 export const EditorLoading = () => {
   return <LoadingView message="Loading editor..." />;
 };
@@ -64,6 +66,9 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
 
   const [nodes, setNodes] = useState<Node[]>(workflow.nodes);
   const [edges, setEdges] = useState<Edge[]>(workflow.edges);
+
+  const [isNarrow, setIsNarrow] = useState(false);
+  const [showMiniMapOnNarrow, setShowMiniMapOnNarrow] = useState(false);
 
   const saveWorkflow = useUpdateWorkflow({ showToast: false });
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -110,6 +115,24 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
   const snapshot = useMemo(() => {
     return serializeWorkflowSnapshot(nodes, edges);
   }, [nodes, edges]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsNarrow(event.matches);
+      if (!event.matches) {
+        setShowMiniMapOnNarrow(false);
+      }
+    };
+
+    setIsNarrow(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, []);
 
   useEffect(() => {
     const initialSnapshot = serializeWorkflowSnapshot(
@@ -222,6 +245,10 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
     workflowId,
   ]);
 
+  const handleToggleMiniMapOnNarrow = useCallback(() => {
+    setShowMiniMapOnNarrow((prev) => !prev);
+  }, []);
+
   return (
     <div className="size-full">
       <ReactFlow
@@ -245,9 +272,26 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
         <Background />
         <Controls />
         <MiniMap className="hidden sm:block" />
+        {isNarrow && showMiniMapOnNarrow && (
+          <Panel
+            position="bottom-right"
+            className="sm:hidden"
+            style={{ marginBottom: 46, marginRight: 0 }}
+          >
+            <MiniMap className="block" />
+          </Panel>
+        )}
         <Panel position="top-right">
           <AddNodeButton />
         </Panel>
+        {isNarrow && (
+          <Panel position="bottom-right" className="sm:hidden">
+            <TriggerHideMiniMapWhenNarrowButton
+              isOpen={showMiniMapOnNarrow}
+              onToggle={handleToggleMiniMapOnNarrow}
+            />
+          </Panel>
+        )}
         {hasManualTrigger && (
           <Panel position="bottom-center">
             <ExecuteWorkflowButton workflowId={workflowId} />
