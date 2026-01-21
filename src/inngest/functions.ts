@@ -1,90 +1,52 @@
-import prisma from "@/lib/prisma";
+import { NonRetriableError } from "inngest";
 import { inngest } from "./client";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createDeepSeek } from "@ai-sdk/deepseek";
-import { generateText } from "ai";
+import prisma from "@/lib/prisma";
+import { topologicalSort } from "./utils";
+import { NodeType } from "@/generated/prisma/enums";
+import { getExecutor } from "@/features/executions/lib/executor-registry";
 
-import * as Sentry from "@sentry/nextjs";
-
-const google = createGoogleGenerativeAI();
-const openai = createOpenAI();
-const anthropic = createAnthropic();
-const deepseek = createDeepSeek();
-
-export const execute = inngest.createFunction(
-  { id: "execute-ai" },
-  { event: "execute/ai" },
+export const executeWorkflow = inngest.createFunction(
+  { id: "execute-workflow" },
+  { event: "workflow/execute.workflow" },
   async ({ event, step }) => {
-    await step.sleep("pretend thinking", "5s");
+    const workflowId = event.data.workflowId;
 
-    Sentry.logger.info("User triggered test log", {
-      log_source: "sentry_test",
+    if (!workflowId) {
+      throw new NonRetriableError("Workflow ID is missing, so non retry");
+    }
+
+    const sortedNodes = await step.run("prepare-workflow", async () => {
+      const workflow = await prisma.workflow.findUniqueOrThrow({
+        where: { id: workflowId },
+        include: {
+          nodes: true,
+          connections: true,
+        },
+      });
+
+      // if (!workflow) {
+      //   throw new NonRetriableError("Workflow not found, so non retry");
+      // }
+      return topologicalSort(workflow.nodes, workflow.connections);
     });
 
-    const { steps: geminiSteps } = await step.ai.wrap(
-      "gemini-generate-text",
-      generateText,
-      {
-        model: google("gemini-2.5-flash"),
-        system: "You are a helpful assistant",
-        prompt: "What is 2+2?",
-        experimental_telemetry: {
-          isEnabled: true,
-          recordInputs: true,
-          recordOutputs: true,
-        },
-      }
-    );
-    const { steps: openaiSteps } = await step.ai.wrap(
-      "openai-generate-text",
-      generateText,
-      {
-        model: openai("gpt-3.5-turbo"),
-        system: "You are a helpful assistant",
-        prompt: "What is 2+2?",
-        experimental_telemetry: {
-          isEnabled: true,
-          recordInputs: true,
-          recordOutputs: true,
-        },
-      }
-    );
-    const { steps: anthropicSteps } = await step.ai.wrap(
-      "anthropic-generate-text",
-      generateText,
-      {
-        model: anthropic("claude-3-5-sonnet-20241022"),
-        system: "You are a helpful assistant",
-        prompt: "What is 2+2?",
-        experimental_telemetry: {
-          isEnabled: true,
-          recordInputs: true,
-          recordOutputs: true,
-        },
-      }
-    );
-    const { steps: deepseekSteps } = await step.ai.wrap(
-      "deepseek-generate-text",
-      generateText,
-      {
-        model: deepseek("deepseek-chat"),
-        system: "You are a helpful assistant",
-        prompt: "What is 2+2?",
-        experimental_telemetry: {
-          isEnabled: true,
-          recordInputs: true,
-          recordOutputs: true,
-        },
-      }
-    );
+    // Initialize the context with any initial data from the trigger
+    let context = event.data.initialData || {}; // TODO
+
+    // Execute each node
+    for (const node of sortedNodes) {
+      const executor = getExecutor(node.type as NodeType);
+      context = await executor({
+        data: node.data as Record<string, unknown>,
+        nodeId: node.id,
+        context,
+        step,
+      });
+    }
 
     return {
-      geminiSteps,
-      openaiSteps,
-      anthropicSteps,
-      deepseekSteps,
+      workflowId,
+      result: context,
     };
-  }
+  },
 );
