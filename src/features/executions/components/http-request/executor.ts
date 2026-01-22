@@ -122,7 +122,7 @@ export const httpRequestDataExecutor: NodeExecutor<HttpRequestData> = async ({
 
     return result;
   } catch (error) {
-    // Publish "success" state for  Http Request
+    // Publish "error" state for  Http Request
     await publish(
       httpRequestChannel().status({
         nodeId,
