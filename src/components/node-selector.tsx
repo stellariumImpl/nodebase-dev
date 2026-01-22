@@ -31,6 +31,12 @@ const triggerNodes: NodeTypeOption[] = [
       "Starts the workflow when you click “Execute workflow”. Great for testing.",
     icon: MousePointerIcon,
   },
+  {
+    type: NodeType.GOOGLE_FORM_TRIGGER,
+    label: "Google Form",
+    description: "Runs the flow when a Google Form is submitted.",
+    icon: "/logos/googleform.svg",
+  },
 ];
 
 const executionNodes: NodeTypeOption[] = [
@@ -124,7 +130,7 @@ export function NodeSelector({
                 <div className="flex items-center gap-6 w-full overflow-hidden">
                   {typeof Icon === "string" ? (
                     <img
-                      src="Icon"
+                      src={Icon}
                       alt={nodeType.label}
                       className="size-5 object-contain rounded-sm"
                     />
@@ -159,7 +165,7 @@ export function NodeSelector({
                 <div className="flex items-center gap-6 w-full overflow-hidden">
                   {typeof Icon === "string" ? (
                     <img
-                      src="Icon"
+                      src={Icon}
                       alt={nodeType.label}
                       className="size-5 object-contain rounded-sm"
                     />

@@ -11,6 +11,7 @@ import { TRPCError } from "@trpc/server";
 import { NodeType } from "@/generated/prisma/enums";
 import type { Node, Edge } from "@xyflow/react";
 import { inngest } from "@/inngest/client";
+import { sendWorkflowExecution } from "@/inngest/utils";
 
 export const WorkflowsRouter = createTRPCRouter({
   execute: protectedProcedure
@@ -22,10 +23,15 @@ export const WorkflowsRouter = createTRPCRouter({
           userId: ctx.auth.user.id,
         },
       });
-      await inngest.send({
-        name: "workflow/execute.workflow",
-        data: { workflowId: input.id },
+      // await inngest.send({
+      //   name: "workflow/execute.workflow",
+      //   data: { workflowId: input.id },
+      // });
+
+      await sendWorkflowExecution({
+        workflowId: input.id,
       });
+
       return workflow;
     }),
 
