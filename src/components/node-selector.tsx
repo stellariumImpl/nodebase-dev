@@ -26,8 +26,9 @@ export type NodeTypeOption = {
 const triggerNodes: NodeTypeOption[] = [
   {
     type: NodeType.MANUAL_TRIGGER,
-    label: "Trigger manually",
-    description: "Run the flow on clicking a button.",
+    label: "Manual trigger",
+    description:
+      "Starts the workflow when you click “Execute workflow”. Great for testing.",
     icon: MousePointerIcon,
   },
 ];
@@ -35,8 +36,8 @@ const triggerNodes: NodeTypeOption[] = [
 const executionNodes: NodeTypeOption[] = [
   {
     type: NodeType.HTTP_REQUEST,
-    label: "HTTP Request",
-    description: "Make an HTTP request",
+    label: "HTTP request (call an API)",
+    description: "Send a GET/POST/etc. to an endpoint and use the response.",
     icon: GlobeIcon,
   },
 ];
@@ -134,7 +135,7 @@ export function NodeSelector({
                     <span className="font-medium text-sm ">
                       {nodeType.label}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground max-w-[300px] wrap-break-word">
                       {nodeType.description}
                     </span>
                   </div>
@@ -169,7 +170,7 @@ export function NodeSelector({
                     <span className="font-medium text-sm ">
                       {nodeType.label}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground max-w-[300px] wrap-break-word">
                       {nodeType.description}
                     </span>
                   </div>
