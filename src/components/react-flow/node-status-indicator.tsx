@@ -54,7 +54,7 @@ export const BorderLoadingIndicator = ({
               to { transform: translate(-50%, -50%) rotate(360deg); }
             }
             .node-border-spinner {
-              animation: spin-border 1s linear infinite;
+              animation: spin-border 3s linear infinite;
               position: absolute;
               left: 50%;
               top: 50%;
