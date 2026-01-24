@@ -1,26 +1,17 @@
-/**
- * Shared types and constants for Gemini integration
- * 
- * Note: Model availability depends on your Google AI API access level.
- * Refer to https://ai.google.dev/gemini-api/docs/models/gemini for the latest models.
- * 
- * Recommended models (in order):
- * - gemini-1.5-flash: Fast and efficient, best for most use cases
- * - gemini-1.5-pro: More capable, better for complex tasks
- * - gemini-2.0-flash-exp: Experimental, newest features but may be unstable
- */
-
 export const AVAILABLE_MODELS = [
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-latest",
-  "gemini-1.5-pro",
-  "gemini-1.5-pro-latest",
+  // "gemini-1.5-flash",
+  "gemini-2.0-flash",
   "gemini-2.0-flash-exp",
-  "gemini-1.0-pro",
 ] as const;
 
 export type GeminiModel = (typeof AVAILABLE_MODELS)[number];
 
+export const normalizeGeminiModel = (model?: string): GeminiModel => {
+  if (model && AVAILABLE_MODELS.includes(model as GeminiModel)) {
+    return model as GeminiModel;
+  }
+  return "gemini-2.0-flash"; // 默认使用最稳定的 ID
+};
 export type GeminiNodeData = {
   variableName?: string;
   model?: GeminiModel;

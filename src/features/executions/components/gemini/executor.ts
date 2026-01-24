@@ -4,7 +4,7 @@ import Handlebars from "handlebars";
 import { geminiChannel } from "@/inngest/channels/gemini";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText } from "ai";
-import { AVAILABLE_MODELS, type GeminiNodeData } from "./types";
+import { normalizeGeminiModel, type GeminiNodeData } from "./types";
 
 Handlebars.registerHelper("json", (context) => {
   const jsonString = JSON.stringify(context, null, 2);
@@ -64,7 +64,7 @@ export const geminiExecutor: NodeExecutor<GeminiNodeData> = async ({
 
   try {
     const { steps } = await step.ai.wrap("gemini-generate-text", generateText, {
-      model: google(data.model || AVAILABLE_MODELS[0]),
+      model: google(normalizeGeminiModel(data.model)),
       system: systemPrompt,
       prompt: userPrompt,
       experimental_telemetry: {

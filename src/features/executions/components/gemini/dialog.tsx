@@ -33,7 +33,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
-import { AVAILABLE_MODELS, type GeminiNodeData } from "./types";
+import {
+  AVAILABLE_MODELS,
+  normalizeGeminiModel,
+  type GeminiNodeData,
+} from "./types";
 
 const formSchema = z.object({
   variableName: z
@@ -78,7 +82,7 @@ export const GeminiDialog = ({
     if (open) {
       form.reset({
         variableName: defaultValues.variableName || "",
-        model: defaultValues.model || AVAILABLE_MODELS[0],
+        model: normalizeGeminiModel(defaultValues.model),
         systemPrompt: defaultValues.systemPrompt || "",
         userPrompt: defaultValues.userPrompt || "",
       });

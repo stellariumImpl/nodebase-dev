@@ -6,8 +6,8 @@ import { BaseExecutionNode } from "../base-execution-node";
 import { GeminiDialog, GeminiFormValues } from "./dialog";
 import { useNodeStatus } from "../../hooks/use-node-status";
 import { fetchGeminiRealtimeToken } from "./actions";
-import { AVAILABLE_MODELS, type GeminiNodeData } from "./types";
 import { GEMINI_CHANNEL_NAME } from "@/inngest/channels/gemini";
+import { normalizeGeminiModel, type GeminiNodeData } from "./types";
 
 type GeminiNodeType = Node<GeminiNodeData>;
 
@@ -44,7 +44,7 @@ export const GeminiNode = memo((props: NodeProps<GeminiNodeType>) => {
 
   const nodeData = props.data;
   const description = nodeData?.userPrompt
-    ? `${nodeData.model || AVAILABLE_MODELS[0]}: ${nodeData.userPrompt.slice(0, 50)}...`
+    ? `${normalizeGeminiModel(nodeData.model)}: ${nodeData.userPrompt.slice(0, 50)}...`
     : "Not confirgured";
 
   return (
