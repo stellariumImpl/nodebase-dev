@@ -2,9 +2,11 @@ import type { Realtime } from "@inngest/realtime";
 
 import { useInngestSubscription } from "@inngest/realtime/hooks";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useAtomValue } from "jotai";
 
 import type { NodeStatus } from "@/components/react-flow/node-status-indicator";
+import { nodeStatusResetAtom } from "@/features/executions/store/node-status-store";
 
 interface UseNodeStatusOptions {
   nodeId: string;
@@ -20,24 +22,35 @@ export function useNodeStatus({
   refreshToken,
 }: UseNodeStatusOptions) {
   const [status, setStatus] = useState<NodeStatus>("initial");
+  const resetCounter = useAtomValue(nodeStatusResetAtom);
   const { data } = useInngestSubscription({
     refreshToken,
     enabled: true,
   });
+  
+  // Track the last reset time to filter messages
+  const lastResetTimeRef = useRef<number>(Date.now());
+
+  // Reset status when workflow execution starts
+  useEffect(() => {
+    setStatus("initial");
+    lastResetTimeRef.current = Date.now();
+  }, [resetCounter]);
 
   useEffect(() => {
     if (!data?.length) {
       return;
     }
 
-    // find the latest message for this node
+    // Find the latest message for this node that was created AFTER the last reset
     const lastestMessage = data
       .filter(
         (msg) =>
           msg.kind === "data" &&
           msg.channel === channel &&
           msg.topic === topic &&
-          msg.data.nodeId === nodeId,
+          msg.data.nodeId === nodeId &&
+          new Date(msg.createdAt).getTime() > lastResetTimeRef.current
       )
       .sort((a, b) => {
         if (a.kind === "data" && b.kind === "data") {
@@ -49,7 +62,10 @@ export function useNodeStatus({
       })[0];
 
     if (lastestMessage?.kind === "data") {
-      setStatus(lastestMessage.data.status as NodeStatus);
+      const messageStatus = lastestMessage.data.status;
+      if (messageStatus === "loading" || messageStatus === "success" || messageStatus === "error") {
+        setStatus(messageStatus);
+      }
     }
   }, [data, nodeId, channel, topic]);
 

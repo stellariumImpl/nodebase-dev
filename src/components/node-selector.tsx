@@ -58,6 +58,24 @@ const executionNodes: NodeTypeOption[] = [
     description: "Uses Google Gemini to generate text",
     icon: "/logos/gemini.svg",
   },
+  {
+    type: NodeType.DEEPSEEK,
+    label: "DeepSeek",
+    description: "Uses DeepSeek for advanced text generation",
+    icon: "/logos/deepseek.svg",
+  },
+  {
+    type: NodeType.OPENAI,
+    label: "OpenAI",
+    description: "Uses OpenAI for advanced text generation",
+    icon: "/logos/openai.svg",
+  },
+  {
+    type: NodeType.ANTHROPIC,
+    label: "Anthropic",
+    description: "Uses Anthropic for advanced text generation",
+    icon: "/logos/anthropic.svg",
+  },
 ];
 
 interface NodeSelectorProps {

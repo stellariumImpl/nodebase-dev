@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { FlaskConicalIcon } from "lucide-react";
 import { Hint } from "@/components/hint";
 import { useExecuteWorkflow } from "@/features/workflows/hooks/use-workflows";
+import { useSetAtom } from "jotai";
+import { triggerNodeStatusResetAtom } from "@/features/executions/store/node-status-store";
 
 export const ExecuteWorkflowButton = ({
   workflowId,
@@ -9,7 +11,11 @@ export const ExecuteWorkflowButton = ({
   workflowId: string;
 }) => {
   const executeWorkflow = useExecuteWorkflow();
+  const triggerNodeStatusReset = useSetAtom(triggerNodeStatusResetAtom);
+  
   const handleExecute = () => {
+    // Reset all node statuses before executing workflow
+    triggerNodeStatusReset();
     executeWorkflow.mutate({ id: workflowId });
   };
   return (
