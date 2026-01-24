@@ -3,7 +3,6 @@
 import { ErrorView, LoadingView } from "@/components/entity-components";
 import { useSuspenseWorkflow } from "@/features/workflows/hooks/use-workflows";
 
-// import { useState, useCallback, useMemo } from "react";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   ReactFlow,
@@ -24,8 +23,7 @@ import "@xyflow/react/dist/style.css";
 import { nodeComponents } from "@/config/node-components";
 
 import { AddNodeButton } from "./add-node-button";
-// import { useSetAtom } from "jotai";
-// import { editorAtom } from "../store/atoms";
+
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   editorAtom,

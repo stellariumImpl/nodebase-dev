@@ -8,6 +8,8 @@ import { httpRequestChannel } from "./channels/http-request";
 import { manualTriggerChannel } from "./channels/manual_trigger";
 import { googleFormTriggerChannel } from "./channels/google-form-trigger";
 import { stripeTriggerChannel } from "./channels/stripe-trigger";
+import { geminiChannel } from "./channels/gemini";
+import { workflowResetChannel } from "./channels/workflow-reset";
 
 export const executeWorkflow = inngest.createFunction(
   {
@@ -21,14 +23,25 @@ export const executeWorkflow = inngest.createFunction(
       manualTriggerChannel(),
       googleFormTriggerChannel(),
       stripeTriggerChannel(),
+      geminiChannel(),
+      workflowResetChannel(),
     ],
   },
   async ({ event, step, publish }) => {
     const workflowId = event.data.workflowId;
+    const executionId = event.data.executionId || event.id;
 
     if (!workflowId) {
       throw new NonRetriableError("Workflow ID is missing, so non retry");
     }
+
+    // Publish workflow reset event to notify frontend to clear all node statuses
+    await publish(
+      workflowResetChannel().reset({
+        workflowId,
+        executionId,
+      }),
+    );
 
     const sortedNodes = await step.run("prepare-workflow", async () => {
       const workflow = await prisma.workflow.findUniqueOrThrow({
