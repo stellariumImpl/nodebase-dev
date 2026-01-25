@@ -7,7 +7,7 @@ import { DeepSeekDialog, DeepSeekFormValues } from "./dialog";
 import { useNodeStatus } from "../../hooks/use-node-status";
 import { fetchDeepSeekRealtimeToken } from "./actions";
 import { DEEPSEEK_CHANNEL_NAME } from "@/inngest/channels/deepseek";
-import { normalizeDeepSeekModel, type DeepSeekNodeData } from "./types";
+import { type DeepSeekNodeData } from "./types";
 
 type DeepSeekNodeType = Node<DeepSeekNodeData>;
 
@@ -44,7 +44,7 @@ export const DeepSeekNode = memo((props: NodeProps<DeepSeekNodeType>) => {
 
   const nodeData = props.data;
   const description = nodeData?.userPrompt
-    ? `${normalizeDeepSeekModel(nodeData.model)}: ${nodeData.userPrompt.slice(0, 50)}...`
+    ? `${nodeData.userPrompt.slice(0, 50)}...`
     : "Not configured";
 
   return (

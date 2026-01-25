@@ -7,7 +7,7 @@ import { OpenAIDialog, OpenAIFormValues } from "./dialog";
 import { useNodeStatus } from "../../hooks/use-node-status";
 import { fetchOpenAIRealtimeToken } from "./actions";
 import { OPENAI_CHANNEL_NAME } from "@/inngest/channels/openai";
-import { normalizeOpenAIModel, type OpenAINodeData } from "./types";
+import { type OpenAINodeData } from "./types";
 
 type OpenAINodeType = Node<OpenAINodeData>;
 
@@ -44,7 +44,7 @@ export const OpenAINode = memo((props: NodeProps<OpenAINodeType>) => {
 
   const nodeData = props.data;
   const description = nodeData?.userPrompt
-    ? `${normalizeOpenAIModel(nodeData.model)}: ${nodeData.userPrompt.slice(0, 50)}...`
+    ? `${nodeData.userPrompt.slice(0, 50)}...`
     : "Not configured";
 
   return (

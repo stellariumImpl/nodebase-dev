@@ -1,7 +1,3 @@
-/**
- * Hook to fetch all workflows using
- */
-
 import { useTRPC } from "@/trpc/client";
 import {
   useQueryClient,
@@ -10,6 +6,10 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useWorkflowsParams } from "./use-workflows-params";
+
+/**
+ * Hook to fetch all workflows using
+ */
 
 export const useSuspenseWorkflows = () => {
   const trpc = useTRPC();

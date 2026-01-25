@@ -7,7 +7,7 @@ import { AnthropicDialog, AnthropicFormValues } from "./dialog";
 import { useNodeStatus } from "../../hooks/use-node-status";
 import { fetchAnthropicRealtimeToken } from "./actions";
 import { ANTHROPIC_CHANNEL_NAME } from "@/inngest/channels/anthropic";
-import { normalizeAnthropicModel, type AnthropicNodeData } from "./types";
+import { type AnthropicNodeData } from "./types";
 
 type AnthropicNodeType = Node<AnthropicNodeData>;
 
@@ -44,7 +44,7 @@ export const AnthropicNode = memo((props: NodeProps<AnthropicNodeType>) => {
 
   const nodeData = props.data;
   const description = nodeData?.userPrompt
-    ? `${normalizeAnthropicModel(nodeData.model)}: ${nodeData.userPrompt.slice(0, 50)}...`
+    ? `${nodeData.userPrompt.slice(0, 50)}...`
     : "Not configured";
 
   return (

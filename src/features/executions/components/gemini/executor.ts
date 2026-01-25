@@ -1,10 +1,12 @@
 import type { NodeExecutor } from "@/features/executions/types";
 import { NonRetriableError } from "inngest";
-import Handlebars from "handlebars";
+import * as Handlebars from "handlebars";
 import { geminiChannel } from "@/inngest/channels/gemini";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText } from "ai";
-import { normalizeGeminiModel, type GeminiNodeData } from "./types";
+import { type GeminiNodeData } from "./types";
+import prisma from "@/lib/prisma";
+import { CredentialType } from "@/generated/prisma/enums";
 
 Handlebars.registerHelper("json", (context) => {
   const jsonString = JSON.stringify(context, null, 2);
@@ -47,7 +49,35 @@ export const geminiExecutor: NodeExecutor<GeminiNodeData> = async ({
     throw new NonRetriableError("Geminin node: User prompt is missing");
   }
 
-  // TODO: Throw if credential is missing
+  if (!data.credentialId) {
+    await publish(
+      geminiChannel().status({
+        nodeId,
+        status: "error",
+      }),
+    );
+    throw new NonRetriableError("Gemini node: Credential is required");
+  }
+
+  // Fetch credential from database
+  const credential = await step.run("fetch-gemini-credential", async () => {
+    const credentialRecord = await prisma.credential.findUnique({
+      where: {
+        id: data.credentialId,
+        type: CredentialType.GEMINI,
+      },
+    });
+
+    if (!credentialRecord) {
+      throw new NonRetriableError("Gemini node: Credential not found");
+    }
+
+    if (!credentialRecord.value) {
+      throw new NonRetriableError("Gemini node: Credential value is missing");
+    }
+
+    return credentialRecord.value;
+  });
 
   const systemPrompt = data.systemPrompt
     ? Handlebars.compile(data.systemPrompt)(context)
@@ -55,16 +85,13 @@ export const geminiExecutor: NodeExecutor<GeminiNodeData> = async ({
 
   const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
-  // TODO: Fetch credential that user selected（这个暂时不要管）
-  const credentialValue = process.env.GOOGLE_GENERATIVE_AI_API_KEY!;
-
   const google = createGoogleGenerativeAI({
-    apiKey: credentialValue,
+    apiKey: credential,
   });
 
   try {
     const { steps } = await step.ai.wrap("gemini-generate-text", generateText, {
-      model: google(normalizeGeminiModel(data.model)),
+      model: google("gemini-2.0-flash"),
       system: systemPrompt,
       prompt: userPrompt,
       experimental_telemetry: {
