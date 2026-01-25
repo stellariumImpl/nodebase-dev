@@ -25,6 +25,8 @@ model User {
   accounts      Account[]
   workflows     Workflow[]
 
+  credentials Credential[]
+
   @@unique([email])
   @@map("user")
 }
@@ -77,6 +79,30 @@ model Verification {
   @@map("verification")
 }
 
+model Credential{
+  id String @id @default(cuid())
+  name String
+  value String
+  type CredentialType
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  Node Node[] 
+
+  @@index([userId])
+  @@map("credential")
+}
+
+enum CredentialType{
+  OPENAI
+  ANTHROPIC
+  GEMINI
+  DEEPSEEK
+}
+
 model Workflow {
   id        String   @id @default(cuid())
   name      String
@@ -114,6 +140,9 @@ model Node {
   type NodeType
   position Json
   data Json @default("{}")
+
+  credentialId String?
+  credential Credential? @relation(fields: [credentialId], references: [id]) // 某人删除了credential 不代表需要把node也给删了
 
   outputConnections Connection[] @relation("FromNode")
   inputConnections Connection[] @relation("ToNode")

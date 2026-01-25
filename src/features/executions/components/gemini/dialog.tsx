@@ -33,11 +33,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
-import {
-  AVAILABLE_MODELS,
-  normalizeGeminiModel,
-  type GeminiNodeData,
-} from "./types";
+import { type GeminiNodeData } from "./types";
+import { useCredentialsByType } from "@/features/credentials/hooks/use-credentials";
+import { CredentialType } from "@/generated/prisma/enums";
+
+import Image from "next/image";
 
 const formSchema = z.object({
   variableName: z
@@ -47,7 +47,7 @@ const formSchema = z.object({
       message:
         "Variable name must start with a letter or underscore and contain only letters, numbers and underscores",
     }),
-  model: z.enum(AVAILABLE_MODELS),
+  credentialId: z.string().min(1, "Credential is required"),
   systemPrompt: z.string().optional(),
   userPrompt: z.string().min(1, "User prompt is required"),
 });
@@ -67,13 +67,16 @@ export const GeminiDialog = ({
   onSubmit,
   defaultValues = {},
 }: Props) => {
+  const { data: credentials, isLoading: isLoadingCredentials } =
+    useCredentialsByType(CredentialType.GEMINI);
+
   const form = useForm<GeminiFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      variableName: "",
-      model: AVAILABLE_MODELS[0],
-      systemPrompt: "",
-      userPrompt: "",
+      credentialId: defaultValues.credentialId || "",
+      variableName: defaultValues.variableName || "",
+      systemPrompt: defaultValues.systemPrompt || "",
+      userPrompt: defaultValues.userPrompt || "",
     },
   });
 
@@ -82,7 +85,7 @@ export const GeminiDialog = ({
     if (open) {
       form.reset({
         variableName: defaultValues.variableName || "",
-        model: normalizeGeminiModel(defaultValues.model),
+        credentialId: defaultValues.credentialId || "",
         systemPrompt: defaultValues.systemPrompt || "",
         userPrompt: defaultValues.userPrompt || "",
       });
@@ -134,29 +137,39 @@ export const GeminiDialog = ({
 
             <FormField
               control={form.control}
-              name="model"
+              name="credentialId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Model</FormLabel>
+                  <FormLabel>Gemini Credential</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
+                    disabled={isLoadingCredentials || !credentials?.length}
                   >
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a model" />
+                        <SelectValue placeholder="Select a credential" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {AVAILABLE_MODELS.map((model) => (
-                        <SelectItem key={model} value={model}>
-                          {model}
+                      {credentials?.map((credential) => (
+                        <SelectItem key={credential.id} value={credential.id}>
+                          <div className="flex items-center gap-2">
+                            <Image
+                              src="/logos/gemini.svg"
+                              alt="Gemini"
+                              width={16}
+                              height={16}
+                              className="rounded-sm"
+                            />
+                            {credential.name}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <FormDescription className="break-all">
-                    Google Gemini model to use for completion
+                    Gemini credential to use for API authentication
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
