@@ -1,10 +1,12 @@
 import type { NodeExecutor } from "@/features/executions/types";
 import { NonRetriableError } from "inngest";
-import Handlebars from "handlebars";
+import * as Handlebars from "handlebars";
 import { deepseekChannel } from "@/inngest/channels/deepseek";
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { generateText } from "ai";
-import { normalizeDeepSeekModel, type DeepSeekNodeData } from "./types";
+import { type DeepSeekNodeData } from "./types";
+import prisma from "@/lib/prisma";
+import { CredentialType } from "@/generated/prisma/enums";
 
 Handlebars.registerHelper("json", (context) => {
   const jsonString = JSON.stringify(context, null, 2);
@@ -27,14 +29,14 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
     }),
   );
 
-  if (!data.variableName) {
+  if (!data.variableName || data.variableName.trim() === "") {
     await publish(
       deepseekChannel().status({
         nodeId,
         status: "error",
       }),
     );
-    throw new NonRetriableError("DeepSeek node: Variable name is missing");
+    throw new NonRetriableError("DeepSeek node: Variable name is required. Please configure the node with a valid variable name.");
   }
 
   if (!data.userPrompt) {
@@ -47,7 +49,35 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
     throw new NonRetriableError("DeepSeek node: User prompt is missing");
   }
 
-  // TODO: Throw if credential is missing
+  if (!data.credentialId) {
+    await publish(
+      deepseekChannel().status({
+        nodeId,
+        status: "error",
+      }),
+    );
+    throw new NonRetriableError("DeepSeek node: Credential is required");
+  }
+
+  // Fetch credential from database
+  const credential = await step.run("fetch-deepseek-credential", async () => {
+    const credentialRecord = await prisma.credential.findUnique({
+      where: {
+        id: data.credentialId,
+        type: CredentialType.DEEPSEEK,
+      },
+    });
+
+    if (!credentialRecord) {
+      throw new NonRetriableError("DeepSeek node: Credential not found");
+    }
+
+    if (!credentialRecord.value) {
+      throw new NonRetriableError("DeepSeek node: Credential value is missing");
+    }
+
+    return credentialRecord.value;
+  });
 
   const systemPrompt = data.systemPrompt
     ? Handlebars.compile(data.systemPrompt)(context)
@@ -55,16 +85,13 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
 
   const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
-  // TODO: Fetch credential that user selected（这个暂时不要管）
-  const credentialValue = process.env.DEEPSEEK_API_KEY!;
-
   const deepseek = createDeepSeek({
-    apiKey: credentialValue,
+    apiKey: credential,
   });
 
   try {
     const { steps } = await step.ai.wrap("deepseek-generate-text", generateText, {
-      model: deepseek(normalizeDeepSeekModel(data.model)),
+      model: deepseek("deepseek-chat"), // Use a fixed model since we're now using credentials
       system: systemPrompt,
       prompt: userPrompt,
       experimental_telemetry: {

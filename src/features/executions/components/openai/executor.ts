@@ -1,10 +1,12 @@
 import type { NodeExecutor } from "@/features/executions/types";
 import { NonRetriableError } from "inngest";
-import Handlebars from "handlebars";
+import * as Handlebars from "handlebars";
 import { openaiChannel } from "@/inngest/channels/openai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
-import { normalizeOpenAIModel, type OpenAINodeData } from "./types";
+import { type OpenAINodeData } from "./types";
+import prisma from "@/lib/prisma";
+import { CredentialType } from "@/generated/prisma/enums";
 
 Handlebars.registerHelper("json", (context) => {
   const jsonString = JSON.stringify(context, null, 2);
@@ -27,11 +29,17 @@ export const openaiExecutor: NodeExecutor<OpenAINodeData> = async ({
     }),
   );
 
-  // Provide default values if missing
-  const variableName = data.variableName || "myAIcall";
-  const userPrompt = data.userPrompt || "Please provide a prompt";
+  if (!data.variableName || data.variableName.trim() === "") {
+    await publish(
+      openaiChannel().status({
+        nodeId,
+        status: "error",
+      }),
+    );
+    throw new NonRetriableError("OpenAI node: Variable name is required. Please configure the node with a valid variable name.");
+  }
 
-  if (!userPrompt.trim()) {
+  if (!data.userPrompt || data.userPrompt.trim() === "") {
     await publish(
       openaiChannel().status({
         nodeId,
@@ -41,26 +49,51 @@ export const openaiExecutor: NodeExecutor<OpenAINodeData> = async ({
     throw new NonRetriableError("OpenAI node: User prompt is required");
   }
 
-  // TODO: Throw if credential is missing
+  if (!data.credentialId) {
+    await publish(
+      openaiChannel().status({
+        nodeId,
+        status: "error",
+      }),
+    );
+    throw new NonRetriableError("OpenAI node: Credential is required");
+  }
+
+  // Fetch credential from database
+  const credential = await step.run("fetch-openai-credential", async () => {
+    const credentialRecord = await prisma.credential.findUnique({
+      where: {
+        id: data.credentialId,
+        type: CredentialType.OPENAI,
+      },
+    });
+
+    if (!credentialRecord) {
+      throw new NonRetriableError("OpenAI node: Credential not found");
+    }
+
+    if (!credentialRecord.value) {
+      throw new NonRetriableError("OpenAI node: Credential value is missing");
+    }
+
+    return credentialRecord.value;
+  });
 
   const systemPrompt = data.systemPrompt
     ? Handlebars.compile(data.systemPrompt)(context)
     : "You are a helpful assistant.";
 
-  const compiledUserPrompt = Handlebars.compile(userPrompt)(context);
-
-  // TODO: Fetch credential that user selected（这个暂时不要管）
-  const credentialValue = process.env.OPENAI_API_KEY!;
+  const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
   const openai = createOpenAI({
-    apiKey: credentialValue,
+    apiKey: credential,
   });
 
   try {
     const { steps } = await step.ai.wrap("openai-generate-text", generateText, {
-      model: openai(normalizeOpenAIModel(data.model)),
+      model: openai("gpt-4o"), // Use a fixed model since we're now using credentials
       system: systemPrompt,
-      prompt: compiledUserPrompt,
+      prompt: userPrompt,
       experimental_telemetry: {
         isEnabled: true,
         recordInputs: true,
@@ -79,7 +112,7 @@ export const openaiExecutor: NodeExecutor<OpenAINodeData> = async ({
 
     return {
       ...context,
-      [variableName]: {
+      [data.variableName]: {
         aiResponse: text,
       },
     };
