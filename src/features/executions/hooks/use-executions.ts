@@ -1,13 +1,7 @@
 import { useTRPC } from "@/trpc/client";
-import {
-  useQueryClient,
-  useSuspenseQuery,
-  useMutation,
-  useQuery,
-} from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useExecutionsParams } from "./use-executions-params";
-import { CredentialType } from "@/generated/prisma/enums";
+import { useMemo } from "react";
 /**
  * Hook to fetch all executions using suspense
  */
@@ -18,7 +12,18 @@ export const useSuspenseExecutions = () => {
   // Extract the params from useExecutionsParams() TODO:
   const [params] = useExecutionsParams();
 
-  return useSuspenseQuery(trpc.executions.getMany.queryOptions(params));
+  const queryOptions = useMemo(
+    () => trpc.executions.getMany.queryOptions(params),
+    [params, trpc.executions],
+  );
+
+  return useSuspenseQuery({
+    ...queryOptions,
+    refetchInterval: 500,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
 };
 
 /**
