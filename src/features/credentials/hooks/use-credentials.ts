@@ -107,7 +107,13 @@ export const useUpdateCredential = ({ showToast = true } = {}) => {
  * Hook to fetch credentials by type
  */
 
-export const useCredentialsByType = (type: CredentialType) => {
+export const useCredentialsByType = (type: CredentialType, options?: { refetchInterval?: number }) => {
   const trpc = useTRPC();
-  return useQuery(trpc.credentials.getByType.queryOptions({ type })); // Dont need to be prefetched
+  return useQuery({
+    ...trpc.credentials.getByType.queryOptions({ type }),
+    refetchInterval: options?.refetchInterval,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
 };

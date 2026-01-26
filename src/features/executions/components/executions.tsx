@@ -58,7 +58,9 @@ export const ExecutionsPagination = () => {
   return (
     <EntityPagination
       //   disabled={credentials.isFetching}
-      disabled={hasHydrated ? executions.isFetching : false}
+      disabled={
+        hasHydrated ? executions.isFetching && !executions.isRefetching : false
+      }
       totalPages={executions.data.totalPages}
       page={executions.data.page}
       onPageChange={(page) => setParams({ ...params, page })}
