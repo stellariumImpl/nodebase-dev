@@ -17,6 +17,7 @@ Handlebars.registerHelper("json", (context) => {
 export const anthropicExecutor: NodeExecutor<AnthropicNodeData> = async ({
   data,
   nodeId,
+  userId,
   context,
   step,
   publish,
@@ -67,6 +68,7 @@ export const anthropicExecutor: NodeExecutor<AnthropicNodeData> = async ({
       where: {
         id: data.credentialId,
         type: CredentialType.ANTHROPIC,
+        userId,
       },
     });
 
