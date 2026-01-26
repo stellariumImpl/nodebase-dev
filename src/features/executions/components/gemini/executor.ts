@@ -7,6 +7,7 @@ import { generateText } from "ai";
 import { type GeminiNodeData } from "./types";
 import prisma from "@/lib/prisma";
 import { CredentialType } from "@/generated/prisma/enums";
+import { decrypt } from "@/lib/encryption";
 
 Handlebars.registerHelper("json", (context) => {
   const jsonString = JSON.stringify(context, null, 2);
@@ -88,7 +89,7 @@ export const geminiExecutor: NodeExecutor<GeminiNodeData> = async ({
   const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
   const google = createGoogleGenerativeAI({
-    apiKey: credential,
+    apiKey: decrypt(credential),
   });
 
   try {

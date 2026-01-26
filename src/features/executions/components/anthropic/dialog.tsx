@@ -32,12 +32,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   type AnthropicNodeData,
 } from "./types";
 import { useCredentialsByType } from "@/features/credentials/hooks/use-credentials";
 import { CredentialType } from "@/generated/prisma/enums";
+import type { CredentialModel as Credential } from "@/generated/prisma/models/Credential";
 
 import Image from "next/image";
 
@@ -69,8 +70,18 @@ export const AnthropicDialog = ({
   onSubmit,
   defaultValues = {},
 }: Props) => {
-  const { data: credentials, isLoading: isLoadingCredentials } =
-    useCredentialsByType(CredentialType.ANTHROPIC);
+  const { 
+    data: credentialsData, 
+    isLoading: isLoadingCredentials, 
+    refetch: refetchCredentials 
+  } = useCredentialsByType(CredentialType.ANTHROPIC, {
+    refetchInterval: open ? 2000 : undefined, // 每2秒轮询一次，仅在dialog打开时
+  });
+
+  // Memoize credentials list to avoid unnecessary re-renders
+  const credentials = useMemo(() => {
+    return credentialsData || [];
+  }, [credentialsData]);
 
   const form = useForm<AnthropicFormValues>({
     resolver: zodResolver(formSchema),
@@ -82,9 +93,13 @@ export const AnthropicDialog = ({
     },
   });
 
-  // Reset form values when dialog opens with new defaults
+  // Reset form values and refresh credentials when dialog opens
   useEffect(() => {
     if (open) {
+      // Refresh credentials to get any newly added ones
+      refetchCredentials();
+      
+      // Reset form with new defaults
       form.reset({
         variableName: defaultValues.variableName || "",
         credentialId: defaultValues.credentialId || "",
@@ -92,7 +107,7 @@ export const AnthropicDialog = ({
         userPrompt: defaultValues.userPrompt || "",
       });
     }
-  }, [open, defaultValues, form]);
+  }, [open, defaultValues, form, refetchCredentials]);
 
   const watchVariableName = form.watch("variableName") || "myAIcall";
 
@@ -154,7 +169,7 @@ export const AnthropicDialog = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {credentials?.map((credential) => (
+                      {credentials?.map((credential: Credential) => (
                         <SelectItem key={credential.id} value={credential.id}>
                           <div className="flex items-center gap-2">
                             <Image
