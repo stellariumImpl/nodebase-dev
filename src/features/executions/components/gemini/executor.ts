@@ -17,6 +17,7 @@ Handlebars.registerHelper("json", (context) => {
 export const geminiExecutor: NodeExecutor<GeminiNodeData> = async ({
   data,
   nodeId,
+  userId,
   context,
   step,
   publish,
@@ -65,6 +66,7 @@ export const geminiExecutor: NodeExecutor<GeminiNodeData> = async ({
       where: {
         id: data.credentialId,
         type: CredentialType.GEMINI,
+        userId,
       },
     });
 

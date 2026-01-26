@@ -17,6 +17,7 @@ Handlebars.registerHelper("json", (context) => {
 export const openaiExecutor: NodeExecutor<OpenAINodeData> = async ({
   data,
   nodeId,
+  userId,
   context,
   step,
   publish,
@@ -36,7 +37,9 @@ export const openaiExecutor: NodeExecutor<OpenAINodeData> = async ({
         status: "error",
       }),
     );
-    throw new NonRetriableError("OpenAI node: Variable name is required. Please configure the node with a valid variable name.");
+    throw new NonRetriableError(
+      "OpenAI node: Variable name is required. Please configure the node with a valid variable name.",
+    );
   }
 
   if (!data.userPrompt || data.userPrompt.trim() === "") {
@@ -65,6 +68,7 @@ export const openaiExecutor: NodeExecutor<OpenAINodeData> = async ({
       where: {
         id: data.credentialId,
         type: CredentialType.OPENAI,
+        userId,
       },
     });
 

@@ -17,6 +17,7 @@ Handlebars.registerHelper("json", (context) => {
 export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
   data,
   nodeId,
+  userId,
   context,
   step,
   publish,
@@ -36,7 +37,9 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
         status: "error",
       }),
     );
-    throw new NonRetriableError("DeepSeek node: Variable name is required. Please configure the node with a valid variable name.");
+    throw new NonRetriableError(
+      "DeepSeek node: Variable name is required. Please configure the node with a valid variable name.",
+    );
   }
 
   if (!data.userPrompt) {
@@ -65,6 +68,7 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
       where: {
         id: data.credentialId,
         type: CredentialType.DEEPSEEK,
+        userId,
       },
     });
 
@@ -90,16 +94,20 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
   });
 
   try {
-    const { steps } = await step.ai.wrap("deepseek-generate-text", generateText, {
-      model: deepseek("deepseek-chat"), // Use a fixed model since we're now using credentials
-      system: systemPrompt,
-      prompt: userPrompt,
-      experimental_telemetry: {
-        isEnabled: true,
-        recordInputs: true,
-        recordOutputs: true,
+    const { steps } = await step.ai.wrap(
+      "deepseek-generate-text",
+      generateText,
+      {
+        model: deepseek("deepseek-chat"), // Use a fixed model since we're now using credentials
+        system: systemPrompt,
+        prompt: userPrompt,
+        experimental_telemetry: {
+          isEnabled: true,
+          recordInputs: true,
+          recordOutputs: true,
+        },
       },
-    });
+    );
     const text =
       steps[0].content[0].type === "text" ? steps[0].content[0].text : "";
 
