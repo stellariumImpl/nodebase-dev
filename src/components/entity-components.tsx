@@ -39,7 +39,7 @@ import {
 type EntityHeaderProps = {
   title: string;
   description?: string;
-  newButtonLabel: string;
+  newButtonLabel?: string;
   disabled?: boolean;
   isCreating?: boolean;
 } & (
@@ -127,14 +127,34 @@ export const EntityHeader = ({
         {/* 场景 B: 手机端/窄屏 (md:hidden)
             特点: 隐藏文字，使用 Hint 包裹，按钮是正方形
          */}
-        <div className="md:hidden">
-          <Hint label={newButtonLabel} side="bottom" align="end">
-            {/* Hint 内部需要包裹这一层 */}
+        {/* <div className="md:hidden">
+          <Hint label={newButtonLabel || ""} side="bottom" align="end">
+
             {renderCommonButton(
               "h-8 w-8 p-0 shrink-0", // 手机端样式:  正方形, 无padding
               <PlusIcon className="size-4" />, // 只有图标
             )}
           </Hint>
+        </div> */}
+
+        <div className="md:hidden">
+          {newButtonLabel &&
+          renderCommonButton(
+            "h-8 w-8 p-0 shrink-0",
+            <PlusIcon className="size-4" />,
+          ) ? (
+            <Hint label={newButtonLabel} side="bottom" align="end">
+              {renderCommonButton(
+                "h-8 w-8 p-0 shrink-0",
+                <PlusIcon className="size-4" />,
+              )}
+            </Hint>
+          ) : (
+            renderCommonButton(
+              "h-8 w-8 p-0 shrink-0",
+              <PlusIcon className="size-4" />,
+            )
+          )}
         </div>
       </div>
     </div>

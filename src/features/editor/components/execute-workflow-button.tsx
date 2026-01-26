@@ -15,9 +15,10 @@ export const ExecuteWorkflowButton = ({
   const triggerNodeStatusReset = useSetAtom(triggerNodeStatusResetAtom);
   const saveStatus = useAtomValue(workflowSaveStatusAtom);
 
-  // 当workflow处于未保存状态时禁用执行按钮
+  // 当workflow处于未保存或保存中状态时禁用执行按钮
   const isUnsaved = saveStatus === "unsaved";
-  const isDisabled = executeWorkflow.isPending || isUnsaved;
+  const isSaving = saveStatus === "saving";
+  const isDisabled = executeWorkflow.isPending || isUnsaved || isSaving;
 
   const handleExecute = () => {
     // Reset all node statuses before executing workflow
