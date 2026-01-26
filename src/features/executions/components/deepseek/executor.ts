@@ -7,6 +7,7 @@ import { generateText } from "ai";
 import { type DeepSeekNodeData } from "./types";
 import prisma from "@/lib/prisma";
 import { CredentialType } from "@/generated/prisma/enums";
+import { decrypt } from "@/lib/encryption";
 
 Handlebars.registerHelper("json", (context) => {
   const jsonString = JSON.stringify(context, null, 2);
@@ -90,7 +91,7 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
   const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
   const deepseek = createDeepSeek({
-    apiKey: credential,
+    apiKey: decrypt(credential),
   });
 
   try {

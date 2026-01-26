@@ -2,6 +2,7 @@ import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useExecutionsParams } from "./use-executions-params";
 import { useMemo } from "react";
+import { ExecutionStatus } from "@/generated/prisma/enums";
 /**
  * Hook to fetch all executions using suspense
  */
