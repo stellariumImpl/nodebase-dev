@@ -29,8 +29,6 @@ const Page = async ({ searchParams }: Props) => {
       <HydrateClient>
         <ErrorBoundary fallback={<CredentialsError />}>
           <Suspense fallback={<CredentialsLoading />}>
-            {/* <p>TODO: Credentials List</p> */}
-
             <CredentialsList />
           </Suspense>
         </ErrorBoundary>
