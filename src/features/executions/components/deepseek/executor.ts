@@ -19,6 +19,7 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
   data,
   nodeId,
   userId,
+  workflowId,
   context,
   step,
   publish,
@@ -63,6 +64,33 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
     throw new NonRetriableError("DeepSeek node: Credential is required");
   }
 
+  // 获取最近的对话历史，待定 10条
+  const historyMessages = await step.run("fetch-chat-history", async () => {
+    return prisma.chatMessage.findMany({
+      where: { workflowId },
+      orderBy: { createdAt: "asc" },
+      take: 10, // 先去取10条，防止token爆炸
+    });
+  });
+
+  // 讲历史记录转化为AI SDK要求的格式
+  const messages = [
+    {
+      role: "system",
+      content: data.systemPrompt
+        ? Handlebars.compile(data.systemPrompt)(context)
+        : "You are a helpful assistant.",
+    },
+    ...historyMessages.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    })),
+    {
+      role: "user",
+      content: Handlebars.compile(data.userPrompt)(context),
+    },
+  ];
+
   // Fetch credential from database
   const credential = await step.run("fetch-deepseek-credential", async () => {
     const credentialRecord = await prisma.credential.findUnique({
@@ -84,11 +112,11 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
     return credentialRecord.value;
   });
 
-  const systemPrompt = data.systemPrompt
-    ? Handlebars.compile(data.systemPrompt)(context)
-    : "You are a helpful assistant.";
+  // const systemPrompt = data.systemPrompt
+  //   ? Handlebars.compile(data.systemPrompt)(context)
+  //   : "You are a helpful assistant.";
 
-  const userPrompt = Handlebars.compile(data.userPrompt)(context);
+  // const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
   const deepseek = createDeepSeek({
     apiKey: decrypt(credential),
@@ -100,8 +128,9 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
       generateText,
       {
         model: deepseek("deepseek-chat"), // Use a fixed model since we're now using credentials
-        system: systemPrompt,
-        prompt: userPrompt,
+        messages: messages as any, // AI SDK 会自动处理
+        // system: systemPrompt,
+        // prompt: userPrompt,
         experimental_telemetry: {
           isEnabled: true,
           recordInputs: true,
@@ -109,8 +138,21 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
         },
       },
     );
+
     const text =
       steps[0].content[0].type === "text" ? steps[0].content[0].text : "";
+
+    // 将 AI 的回复存入数据库，形成闭环
+    // 只有存进去了，下一次对话才会有记忆
+    await step.run("save-ai-response", async () => {
+      return prisma.chatMessage.create({
+        data: {
+          workflowId,
+          role: "assistant",
+          content: text,
+        },
+      });
+    });
 
     await publish(
       deepseekChannel().status({

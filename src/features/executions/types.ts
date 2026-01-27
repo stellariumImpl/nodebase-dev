@@ -9,6 +9,7 @@ export interface NodeExecutorParams<TData = Record<string, unknown>> {
   data: TData;
   nodeId: string;
   userId: string;
+  workflowId: string; // 让executor知道当前工作流的ID
   context: WorkflowContext;
   step: StepTools;
   publish: Realtime.PublishFn;

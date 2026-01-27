@@ -54,6 +54,7 @@ export const executeWorkflow = inngest.createFunction(
       );
     }
 
+    // 创建执行记录
     await step.run("create-execution", async () => {
       return prisma.execution.create({
         data: {
@@ -63,6 +64,20 @@ export const executeWorkflow = inngest.createFunction(
       });
     });
 
+    // 如果是对话触发，保存用户的原始消息
+    // 假设前端发送事件时，将用户输入的文本放在 initialData.message 中
+    if (event.data.initialData?.message) {
+      await step.run("save-user-message", async () => {
+        return prisma.chatMessage.create({
+          data: {
+            workflowId,
+            role: "user",
+            content: event.data.initialData.message as string,
+          },
+        });
+      });
+    }
+
     // Publish workflow reset event to notify frontend to clear all node statuses
     await publish(
       workflowResetChannel().reset({
@@ -71,6 +86,7 @@ export const executeWorkflow = inngest.createFunction(
       }),
     );
 
+    // 准备工作流
     const sortedNodes = await step.run("prepare-workflow", async () => {
       const workflow = await prisma.workflow.findUniqueOrThrow({
         where: { id: workflowId },
@@ -80,9 +96,6 @@ export const executeWorkflow = inngest.createFunction(
         },
       });
 
-      // if (!workflow) {
-      //   throw new NonRetriableError("Workflow not found, so non retry");
-      // }
       return topologicalSort(workflow.nodes, workflow.connections);
     });
 
@@ -96,8 +109,9 @@ export const executeWorkflow = inngest.createFunction(
       return workflow.userId;
     });
 
+    // 初始化上下文
     // Initialize the context with any initial data from the trigger
-    let context = event.data.initialData || {}; // TODO
+    let context = event.data.initialData || {};
 
     // Execute each node
     for (const node of sortedNodes) {
@@ -109,9 +123,11 @@ export const executeWorkflow = inngest.createFunction(
         step,
         publish,
         userId,
+        workflowId,
       });
     }
 
+    // 更新执行成功状态
     await step.run("update-execution", async () => {
       const updatedExecution = await prisma.execution.update({
         where: { inngestEventId, workflowId },
