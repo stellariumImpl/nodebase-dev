@@ -3,6 +3,6 @@ import { realtimeMiddleware } from "@inngest/realtime/middleware";
 
 // Create a client to send and receive events
 export const inngest = new Inngest({
-  id: "nodebase-dev",
+  id: "nodebase",
   middleware: [realtimeMiddleware()],
 });
