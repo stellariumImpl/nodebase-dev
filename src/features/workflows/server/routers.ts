@@ -23,10 +23,6 @@ export const WorkflowsRouter = createTRPCRouter({
           userId: ctx.auth.user.id,
         },
       });
-      // await inngest.send({
-      //   name: "workflow/execute.workflow",
-      //   data: { workflowId: input.id },
-      // });
 
       await sendWorkflowExecution({
         workflowId: input.id,
@@ -50,6 +46,7 @@ export const WorkflowsRouter = createTRPCRouter({
       },
     });
   }),
+
   remove: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(({ ctx, input }) => {
@@ -60,6 +57,7 @@ export const WorkflowsRouter = createTRPCRouter({
         },
       });
     }),
+
   update: protectedProcedure
     .input(
       z.object({
@@ -89,14 +87,11 @@ export const WorkflowsRouter = createTRPCRouter({
         where: { id, userId: ctx.auth.user.id },
       });
 
-      // Transacation to ensure consistency
       return await prisma.$transaction(async (tx) => {
-        // Delete exisiting nodes and connections (cascade deletes connections)
         await tx.node.deleteMany({
           where: { workflowId: id },
         });
 
-        // create Nodes
         await tx.node.createMany({
           data: nodes.map((node) => ({
             id: node.id,
@@ -108,7 +103,6 @@ export const WorkflowsRouter = createTRPCRouter({
           })),
         });
 
-        // Create Connections
         await tx.connection.createMany({
           data: edges.map((edge) => ({
             workflowId: id,
@@ -119,7 +113,6 @@ export const WorkflowsRouter = createTRPCRouter({
           })),
         });
 
-        // Update workflow's updateAt timestamp
         await tx.workflow.update({
           where: { id },
           data: { updatedAt: new Date() },
@@ -128,6 +121,7 @@ export const WorkflowsRouter = createTRPCRouter({
         return workflow;
       });
     }),
+
   updateName: protectedProcedure
     .input(z.object({ id: z.string(), name: z.string().min(1) }))
     .mutation(({ ctx, input }) => {
@@ -141,6 +135,7 @@ export const WorkflowsRouter = createTRPCRouter({
         },
       });
     }),
+
   getOne: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -155,12 +150,6 @@ export const WorkflowsRouter = createTRPCRouter({
         },
       });
 
-      //   if (!workflow) {
-      //     throw new TRPCError({ code: "NOT_FOUND" });
-      //   }
-      //   return workflow;
-
-      // Transform server nodes to react-flow compatible nodes
       const nodes: Node[] = workflow.nodes.map((node) => ({
         id: node.id,
         type: node.type,
@@ -168,7 +157,6 @@ export const WorkflowsRouter = createTRPCRouter({
         data: (node.data as Record<string, unknown>) || {},
       }));
 
-      // Transform server connections to react-flow compatible edges
       const edges: Edge[] = workflow.connections.map((connection) => ({
         id: connection.id,
         source: connection.fromNodeId,
@@ -217,7 +205,6 @@ export const WorkflowsRouter = createTRPCRouter({
         prisma.workflow.count({
           where: {
             userId: ctx.auth.user.id,
-            // attention!!!
             name: {
               contains: search,
               mode: "insensitive",
@@ -238,5 +225,58 @@ export const WorkflowsRouter = createTRPCRouter({
         hasNextPage,
         hasPreviousPage,
       };
+    }),
+
+  /**
+   * AI 对话增强接口
+   */
+
+  // 1. 获取工作流关联的消息历史
+  getChatMessages: protectedProcedure
+    .input(z.object({ workflowId: z.string() }))
+    .query(async ({ input, ctx }) => {
+      return prisma.chatMessage.findMany({
+        where: {
+          workflowId: input.workflowId,
+          // 安全校验：确保工作流属于当前用户
+          workflow: {
+            userId: ctx.auth.user.id,
+          },
+        },
+        orderBy: {
+          createdAt: "asc", // 按时间升序展示对话
+        },
+      });
+    }),
+
+  // 2. 发送聊天消息并触发 Agent 执行
+  sendChatMessage: protectedProcedure
+    .input(
+      z.object({
+        workflowId: z.string(),
+        message: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      // 验证权限
+      await prisma.workflow.findUniqueOrThrow({
+        where: {
+          id: input.workflowId,
+          userId: ctx.auth.user.id,
+        },
+      });
+
+      // 触发 Inngest 工作流，将消息放入 initialData
+      // 刚才我们在 Inngest 里写的 save-user-message 逻辑会在这里被激活
+      await inngest.send({
+        name: "chat/message.sent", // 专门的消息事件，不再干扰 workflow/execute.workflow
+        data: {
+          workflowId: input.workflowId,
+          userId: ctx.auth.user.id,
+          message: input.message,
+        },
+      });
+
+      return { success: true };
     }),
 });

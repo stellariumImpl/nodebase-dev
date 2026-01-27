@@ -13,6 +13,61 @@ import { workflowResetChannel } from "./channels/workflow-reset";
 import { discordChannel } from "./channels/discord";
 import { slackChannel } from "./channels/slack";
 
+/**
+ * 1. 专门处理 AI 对话的函数
+ * 监听 chat/message.sent 事件
+ */
+export const handleChatMessage = inngest.createFunction(
+  { id: "handle-chat-message" },
+  { event: "chat/message.sent" }, // 独立事件，不触发工作流执行
+  async ({ event, step }) => {
+    const { workflowId, userId, message } = event.data;
+
+    // A. 存入用户消息
+    await step.run("save-user-message", async () => {
+      return prisma.chatMessage.create({
+        data: { workflowId, role: "user", content: message },
+      });
+    });
+
+    // B. 上下文感知：读取当前工作流的结构（节点和连线）
+    const workflowContext = await step.run("get-workflow-context", async () => {
+      const workflow = await prisma.workflow.findUnique({
+        where: { id: workflowId },
+        include: { nodes: true, connections: true },
+      });
+      if (!workflow) return "未知工作流";
+
+      // 将节点信息转为简单的文本描述，喂给 AI
+      const nodeInfo = workflow.nodes
+        .map((n) => `- ${n.name} (类型: ${n.type})`)
+        .join("\n");
+      const connectionInfo = workflow.connections
+        .map((c) => `- 从 ${c.fromNodeId} 连向 ${c.toNodeId}`)
+        .join("\n");
+      return `当前画布结构：\n节点：\n${nodeInfo}\n连接：\n${connectionInfo}`;
+    });
+
+    // C. 调用 DeepSeek (此处建议封装一个工具函数)
+    const aiReply = await step.run("call-deepseek", async () => {
+      // 这里的逻辑可以根据你的具体 DeepSeek 配置实现
+      // 核心是将 workflowContext 作为系统提示词发给 LLM
+      const prompt = `你是一个工作流专家。${workflowContext}\n用户问：${message}`;
+      // const res = await fetchDeepSeek(prompt);
+      return `收到！我看到你现在有 ${workflowContext.split("\n").length} 个节点，建议... (模拟回复)`;
+    });
+
+    // D. 存入 AI 回复气泡
+    await step.run("save-ai-message", async () => {
+      return prisma.chatMessage.create({
+        data: { workflowId, role: "assistant", content: aiReply },
+      });
+    });
+
+    return { success: true };
+  },
+);
+
 export const executeWorkflow = inngest.createFunction(
   {
     id: "execute-workflow",
@@ -66,17 +121,17 @@ export const executeWorkflow = inngest.createFunction(
 
     // 如果是对话触发，保存用户的原始消息
     // 假设前端发送事件时，将用户输入的文本放在 initialData.message 中
-    if (event.data.initialData?.message) {
-      await step.run("save-user-message", async () => {
-        return prisma.chatMessage.create({
-          data: {
-            workflowId,
-            role: "user",
-            content: event.data.initialData.message as string,
-          },
-        });
-      });
-    }
+    // if (event.data.initialData?.message) {
+    //   await step.run("save-user-message", async () => {
+    //     return prisma.chatMessage.create({
+    //       data: {
+    //         workflowId,
+    //         role: "user",
+    //         content: event.data.initialData.message as string,
+    //       },
+    //     });
+    //   });
+    // }
 
     // Publish workflow reset event to notify frontend to clear all node statuses
     await publish(
