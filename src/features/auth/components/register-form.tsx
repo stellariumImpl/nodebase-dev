@@ -75,6 +75,44 @@ export function RegisterForm() {
     router.prefetch("/");
   }, [router]);
 
+  const signInGithub = async () => {
+    setIsNavigating(true);
+    await authClient.signIn.social(
+      {
+        provider: "github",
+        callbackURL: "/", // 指定回调URL，避免跳转到登录页面
+      },
+      {
+        onSuccess: () => {
+          // 如果成功，页面会自动跳转，这里不需要额外处理
+        },
+        onError: (ctx) => {
+          setIsNavigating(false);
+          toast.error(ctx.error.message);
+        },
+      },
+    );
+  };
+
+  const singInGoogle = async () => {
+    setIsNavigating(true);
+    await authClient.signIn.social(
+      {
+        provider: "google",
+        callbackURL: "/", // 指定回调URL，避免跳转到登录页面
+      },
+      {
+        onSuccess: () => {
+          // 如果成功，页面会自动跳转，这里不需要额外处理
+        },
+        onError: (ctx) => {
+          setIsNavigating(false);
+          toast.error(ctx.error.message);
+        },
+      },
+    );
+  };
+
   const onSubmit = async (values: RegisterFormValues) => {
     await authClient.signUp.email(
       {
@@ -202,7 +240,7 @@ export function RegisterForm() {
               <Field className="grid gap-4 sm:grid-cols-2">
                 <Button
                   disabled={isPending}
-                  onClick={() => {}}
+                  onClick={singInGoogle}
                   variant="outline"
                   size="lg"
                   className="w-full font-medium text-sm gap-3"
@@ -214,7 +252,7 @@ export function RegisterForm() {
 
                 <Button
                   disabled={isPending}
-                  onClick={() => {}}
+                  onClick={signInGithub}
                   variant="outline"
                   size="lg"
                   className="w-full font-medium text-sm gap-3"
