@@ -203,12 +203,14 @@ export const AppSidebar = () => {
               <SidebarMenuButton
                 className="h-10 px-3 gap-x-3"
                 tooltip="Upgrade to Pro"
-                onClick={() => authClient.checkout({ slug: "pro" })}
+                asChild
               >
-                <StarIcon className="w-5 h-5" />
-                <span className="data-[state=collapsed]:hidden">
-                  Upgrade to Pro
-                </span>
+                <Link href="/upgrade" prefetch>
+                  <StarIcon className="w-5 h-5" />
+                  <span className="data-[state=collapsed]:hidden">
+                    Upgrade to Pro
+                  </span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
@@ -217,12 +219,14 @@ export const AppSidebar = () => {
             <SidebarMenuButton
               className="h-10 px-3 gap-x-3"
               tooltip="Billing portal"
-              onClick={() => authClient.customer.portal()}
+              asChild
             >
-              <CreditCardIcon className="w-5 h-5" />
-              <span className="data-[state=collapsed]:hidden">
-                Billing portal
-              </span>
+              <Link href="/billing" prefetch>
+                <CreditCardIcon className="w-5 h-5" />
+                <span className="data-[state=collapsed]:hidden">
+                  Billing portal
+                </span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
