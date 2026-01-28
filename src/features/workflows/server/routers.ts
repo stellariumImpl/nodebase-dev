@@ -255,6 +255,14 @@ export const WorkflowsRouter = createTRPCRouter({
       z.object({
         workflowId: z.string(),
         message: z.string().min(1),
+        // 核心增强：混合模式配置对象
+        aiConfig: z
+          .object({
+            credentialId: z.string().optional(),
+            customBaseUrl: z.string().optional(),
+            customApiKey: z.string().optional(),
+          })
+          .optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -274,6 +282,7 @@ export const WorkflowsRouter = createTRPCRouter({
           workflowId: input.workflowId,
           userId: ctx.auth.user.id,
           message: input.message,
+          aiConfig: input.aiConfig, // 传递混合配置
         },
       });
 
