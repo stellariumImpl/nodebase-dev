@@ -9,6 +9,7 @@ import {
   Alegreya,
   Merriweather,
   Source_Code_Pro,
+  IBM_Plex_Mono,
 } from "next/font/google";
 import "./globals.css";
 import { TRPCReactProvider } from "@/trpc/client";
@@ -32,6 +33,13 @@ const ovo = Ovo({
   weight: "400",
   subsets: ["latin"],
   variable: "--font-ovo",
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin"],
+  variable: "--font-ibm-plex-mono",
+  display: "swap",
 });
 
 // 配置 Lora (通常用于正文，阅读感极佳)
@@ -112,7 +120,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${ovo.variable} ${baskerville.variable} ${lora.variable} ${rufina.variable} ${alegreya.variable} ${merriweather.variable} ${sourceCodePro.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${ovo.variable} ${baskerville.variable} ${lora.variable} ${rufina.variable} ${alegreya.variable} ${merriweather.variable} ${sourceCodePro.variable} ${ibmPlexMono.variable} antialiased`}
       >
         {/* NOTE: self-modified, 避免闪白 / 闪暗 */}
         <ThemeInjector />
