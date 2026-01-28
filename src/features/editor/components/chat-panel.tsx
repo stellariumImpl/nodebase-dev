@@ -139,7 +139,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     sendMessage.mutate({
       workflowId,
       message: trimmed,
-      aiConfig, // 传递给后端 handleChatMessage 处理
+      aiConfig: { credentialId: selectedCredentialId || undefined },
     });
 
     // 也可以立即滚一次（更“即时”），不等轮询回来

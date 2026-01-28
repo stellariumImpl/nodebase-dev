@@ -274,6 +274,15 @@ export const WorkflowsRouter = createTRPCRouter({
         },
       });
 
+      // 关键改动：先同步保存用户消息，确保 UI 响应极速且不失踪
+      await prisma.chatMessage.create({
+        data: {
+          workflowId: input.workflowId,
+          role: "user",
+          content: input.message,
+        },
+      });
+
       // 触发 Inngest 工作流，将消息放入 initialData
       // 刚才我们在 Inngest 里写的 save-user-message 逻辑会在这里被激活
       await inngest.send({

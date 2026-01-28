@@ -14,30 +14,30 @@ import { discordChannel } from "./channels/discord";
 import { slackChannel } from "./channels/slack";
 
 import { createOpenAI } from "@ai-sdk/openai";
+import { createDeepSeek } from "@ai-sdk/deepseek"; // ✅ 导入专用驱动
 import { generateText } from "ai";
 import { decrypt } from "@/lib/encryption";
 import { CredentialType } from "@/generated/prisma/enums";
 
-// 代码层维护官方服务地址，不改数据库
 const OFFICIAL_URL_MAP: Partial<Record<CredentialType, string>> = {
-  [CredentialType.DEEPSEEK]: "https://api.deepseek.com/v1",
+  [CredentialType.DEEPSEEK]: "https://api.deepseek.com",
   [CredentialType.OPENAI]: "https://api.openai.com/v1",
 };
 
 const OFFICIAL_MODEL_MAP: Partial<Record<CredentialType, string>> = {
   [CredentialType.DEEPSEEK]: "deepseek-chat",
-  [CredentialType.OPENAI]: "gpt-4o", // 倾向的默认模型
+  [CredentialType.OPENAI]: "gpt-4o",
 };
 
 type ResolvedAIConfig = {
   baseURL: string;
   apiKey: string;
   modelId: string;
+  providerType: CredentialType | "CUSTOM";
 };
 
 /**
  * 专门处理 AI 对话的函数
- * 监听由 WorkflowsRouter 发出的 chat/message.sent 事件
  */
 export const handleChatMessage = inngest.createFunction(
   { id: "handle-chat-message" },
@@ -45,88 +45,106 @@ export const handleChatMessage = inngest.createFunction(
   async ({ event, step }) => {
     const { workflowId, userId, message, aiConfig } = event.data;
 
-    // 1. 混合解析 AI 配置：支持现有凭证解密与手动自定义 URL
+    // 1. 解析 AI 配置 (不再负责保存用户消息，消息已在 Router 存入)
     const resolvedConfig: ResolvedAIConfig = await step.run(
       "resolve-ai-config",
       async () => {
-        // 场景 A：用户手动输入了自定义/本地 URL (如 Ollama)
-        if (aiConfig?.customBaseUrl) {
+        try {
+          if (aiConfig?.customBaseUrl) {
+            return {
+              baseURL: aiConfig.customBaseUrl,
+              apiKey: aiConfig.customApiKey || "ollama",
+              modelId: "llama3.1",
+              providerType: "CUSTOM" as const,
+            };
+          }
+
+          if (aiConfig?.credentialId) {
+            const credential = await prisma.credential.findUniqueOrThrow({
+              where: { id: aiConfig.credentialId, userId },
+            });
+            return {
+              baseURL:
+                OFFICIAL_URL_MAP[credential.type] ||
+                OFFICIAL_URL_MAP[CredentialType.OPENAI]!,
+              apiKey: decrypt(credential.value),
+              modelId: OFFICIAL_MODEL_MAP[credential.type] || "gpt-4o",
+              providerType: credential.type,
+            };
+          }
+
           return {
-            baseURL: aiConfig.customBaseUrl,
-            apiKey: aiConfig.customApiKey || "ollama", // Ollama 默认通常不需要有效 Key
-            modelId: "llama3.1", // ✅ 关键：补齐 modelId，避免 union 类型缺字段
+            baseURL:
+              process.env.DEEPSEEK_API_URL ||
+              OFFICIAL_URL_MAP[CredentialType.DEEPSEEK]!,
+            apiKey: process.env.DEEPSEEK_API_KEY as string,
+            modelId: "deepseek-chat",
+            providerType: CredentialType.DEEPSEEK,
           };
+        } catch (err: any) {
+          throw new NonRetriableError(`AI 配置错误: ${err.message}`);
         }
-
-        // 场景 B：用户选择了现有凭证
-        if (aiConfig?.credentialId) {
-          const credential = await prisma.credential.findUniqueOrThrow({
-            where: { id: aiConfig.credentialId, userId },
-          });
-
-          const apiKey = decrypt(credential.value);
-          const baseURL =
-            OFFICIAL_URL_MAP[credential.type] ||
-            OFFICIAL_URL_MAP[CredentialType.OPENAI]!;
-          // 新增：动态匹配模型
-          const modelId = OFFICIAL_MODEL_MAP[credential.type] || "gpt-4o";
-
-          return { baseURL, apiKey, modelId };
-        }
-
-        // 场景 C：默认
-        return {
-          baseURL:
-            process.env.DEEPSEEK_API_URL ||
-            OFFICIAL_URL_MAP[CredentialType.DEEPSEEK]!,
-          apiKey: process.env.DEEPSEEK_API_KEY as string,
-          modelId: "deepseek-chat",
-        };
       },
     );
 
-    // 2. 存入用户消息到数据库，以便前端轮询展示
-    await step.run("save-user-message", async () => {
-      return prisma.chatMessage.create({
-        data: { workflowId, role: "user", content: message },
-      });
-    });
-
-    // 3. 上下文感知：读取当前画布的节点与连线结构
+    // 2. ✅ 低成本优化：语义化上下文感知 (将 UUID 转换为节点名称)
     const workflowContext = await step.run("get-workflow-context", async () => {
       const workflow = await prisma.workflow.findUnique({
         where: { id: workflowId },
         include: { nodes: true, connections: true },
       });
-      if (!workflow) return "当前是一个空工作流。";
+      if (!workflow || workflow.nodes.length === 0)
+        return "当前是一个空工作流。";
+
+      const nodeMap = new Map(workflow.nodes.map((n) => [n.id, n.name]));
 
       const nodeInfo = workflow.nodes
         .map((n) => `- ${n.name} (类型: ${n.type})`)
         .join("\n");
+
       const connectionInfo = workflow.connections
-        .map((c) => `- 从节点 [${c.fromNodeId}] 指向节点 [${c.toNodeId}]`)
+        .map((c) => {
+          const fromName = nodeMap.get(c.fromNodeId) || "未知节点";
+          const toName = nodeMap.get(c.toNodeId) || "未知节点";
+          return `- [${fromName}] --> [${toName}]`;
+        })
         .join("\n");
 
-      return `【画布结构分析】\n现有节点：\n${nodeInfo}\n\n连线逻辑：\n${connectionInfo}`;
+      return `【画布节点】\n${nodeInfo}\n\n【语义化执行链路】\n${connectionInfo || "暂无连线"}`;
     });
 
-    // 4. 调用 Vercel AI SDK 生成回复 (DeepSeek 兼容 OpenAI 协议)
+    // 3. 调用 AI 生成回复
     const aiReply = await step.run("call-ai", async () => {
-      const provider = createOpenAI({
-        apiKey: resolvedConfig.apiKey,
-        baseURL: resolvedConfig.baseURL,
-      });
+      try {
+        const provider =
+          resolvedConfig.providerType === CredentialType.DEEPSEEK
+            ? createDeepSeek({
+                apiKey: resolvedConfig.apiKey,
+                baseURL: resolvedConfig.baseURL,
+              })
+            : createOpenAI({
+                apiKey: resolvedConfig.apiKey,
+                baseURL: resolvedConfig.baseURL,
+              });
 
-      const { text } = await generateText({
-        model: provider(resolvedConfig.modelId),
-        system: `你是一个专业的 Nodebase 工作流诊断专家。你会分析用户的画布结构并给出逻辑建议。不要胡乱猜测，基于以下事实回答：\n${workflowContext}`,
-        prompt: message,
-      });
-
-      return text;
+        const { text } = await generateText({
+          model: provider(resolvedConfig.modelId),
+          system: `你是一个专业的 Nodebase 诊断专家。请基于以下语义化链路回答，不要胡乱猜测：\n\n${workflowContext}`,
+          prompt: message,
+        });
+        return text;
+      } catch (error: any) {
+        const status = error?.status || 500;
+        if (status === 401 || status === 404) {
+          throw new NonRetriableError(
+            `AI 调用失败 (${status}): ${error.message}`,
+          );
+        }
+        throw error;
+      }
     });
 
-    // 5. 将 AI 的回复存入数据库
+    // 4. 将 AI 的回复存入数据库
     await step.run("save-assistant-message", async () => {
       return prisma.chatMessage.create({
         data: { workflowId, role: "assistant", content: aiReply },
@@ -137,12 +155,15 @@ export const handleChatMessage = inngest.createFunction(
   },
 );
 
+/**
+ * ✅ 你的执行器逻辑，完整保留
+ */
 export const executeWorkflow = inngest.createFunction(
   {
     id: "execute-workflow",
     retries: process.env.NODE_ENV === "production" ? 3 : 0,
     onFailure: async ({ event }) => {
-      const updatedExecution = await prisma.execution.update({
+      await prisma.execution.update({
         where: { inngestEventId: event.data.event.id },
         data: {
           status: ExecutionStatus.FAILED,
@@ -150,8 +171,6 @@ export const executeWorkflow = inngest.createFunction(
           errorStack: event.data.error.stack,
         },
       });
-
-      return updatedExecution;
     },
   },
   {
@@ -173,57 +192,35 @@ export const executeWorkflow = inngest.createFunction(
     const executionId = event.data.executionId || event.id;
 
     if (!inngestEventId || !workflowId) {
-      throw new NonRetriableError(
-        "Event ID or Workflow ID is missing, so non retry",
-      );
+      throw new NonRetriableError("Event ID or Workflow ID is missing");
     }
 
-    // 创建执行记录
     await step.run("create-execution", async () => {
       return prisma.execution.create({
-        data: {
-          workflowId,
-          inngestEventId,
-        },
+        data: { workflowId, inngestEventId },
       });
     });
 
-    // Publish workflow reset event to notify frontend to clear all node statuses
-    await publish(
-      workflowResetChannel().reset({
-        workflowId,
-        executionId,
-      }),
-    );
+    await publish(workflowResetChannel().reset({ workflowId, executionId }));
 
-    // 准备工作流
     const sortedNodes = await step.run("prepare-workflow", async () => {
       const workflow = await prisma.workflow.findUniqueOrThrow({
         where: { id: workflowId },
-        include: {
-          nodes: true,
-          connections: true,
-        },
+        include: { nodes: true, connections: true },
       });
-
       return topologicalSort(workflow.nodes, workflow.connections);
     });
 
     const userId = await step.run("find-user-id", async () => {
       const workflow = await prisma.workflow.findUniqueOrThrow({
         where: { id: workflowId },
-        select: {
-          userId: true,
-        },
+        select: { userId: true },
       });
       return workflow.userId;
     });
 
-    // 初始化上下文
-    // Initialize the context with any initial data from the trigger
     let context = event.data.initialData || {};
 
-    // Execute each node
     for (const node of sortedNodes) {
       const executor = getExecutor(node.type as NodeType);
       context = await executor({
@@ -237,9 +234,8 @@ export const executeWorkflow = inngest.createFunction(
       });
     }
 
-    // 更新执行成功状态
     await step.run("update-execution", async () => {
-      const updatedExecution = await prisma.execution.update({
+      await prisma.execution.update({
         where: { inngestEventId, workflowId },
         data: {
           status: ExecutionStatus.SUCCESS,
@@ -247,13 +243,8 @@ export const executeWorkflow = inngest.createFunction(
           output: context,
         },
       });
-
-      return updatedExecution;
     });
 
-    return {
-      workflowId,
-      result: context,
-    };
+    return { workflowId, result: context };
   },
 );
