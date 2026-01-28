@@ -19,9 +19,20 @@ import { decrypt } from "@/lib/encryption";
 import { CredentialType } from "@/generated/prisma/enums";
 
 // 代码层维护官方服务地址，不改数据库
-const OFFICIAL_URL_MAP: Record<string, string> = {
-  DEEPSEEK: "https://api.deepseek.com/v1",
-  OPENAI: "https://api.openai.com/v1",
+const OFFICIAL_URL_MAP: Partial<Record<CredentialType, string>> = {
+  [CredentialType.DEEPSEEK]: "https://api.deepseek.com/v1",
+  [CredentialType.OPENAI]: "https://api.openai.com/v1",
+};
+
+const OFFICIAL_MODEL_MAP: Partial<Record<CredentialType, string>> = {
+  [CredentialType.DEEPSEEK]: "deepseek-chat",
+  [CredentialType.OPENAI]: "gpt-4o", // 倾向的默认模型
+};
+
+type ResolvedAIConfig = {
+  baseURL: string;
+  apiKey: string;
+  modelId: string;
 };
 
 /**
@@ -35,39 +46,44 @@ export const handleChatMessage = inngest.createFunction(
     const { workflowId, userId, message, aiConfig } = event.data;
 
     // 1. 混合解析 AI 配置：支持现有凭证解密与手动自定义 URL
-    const resolvedConfig = await step.run("resolve-ai-config", async () => {
-      // 场景 A：用户手动输入了自定义/本地 URL (如 Ollama)
-      if (aiConfig?.customBaseUrl) {
+    const resolvedConfig: ResolvedAIConfig = await step.run(
+      "resolve-ai-config",
+      async () => {
+        // 场景 A：用户手动输入了自定义/本地 URL (如 Ollama)
+        if (aiConfig?.customBaseUrl) {
+          return {
+            baseURL: aiConfig.customBaseUrl,
+            apiKey: aiConfig.customApiKey || "ollama", // Ollama 默认通常不需要有效 Key
+            modelId: "llama3.1", // ✅ 关键：补齐 modelId，避免 union 类型缺字段
+          };
+        }
+
+        // 场景 B：用户选择了现有凭证
+        if (aiConfig?.credentialId) {
+          const credential = await prisma.credential.findUniqueOrThrow({
+            where: { id: aiConfig.credentialId, userId },
+          });
+
+          const apiKey = decrypt(credential.value);
+          const baseURL =
+            OFFICIAL_URL_MAP[credential.type] ||
+            OFFICIAL_URL_MAP[CredentialType.OPENAI]!;
+          // 新增：动态匹配模型
+          const modelId = OFFICIAL_MODEL_MAP[credential.type] || "gpt-4o";
+
+          return { baseURL, apiKey, modelId };
+        }
+
+        // 场景 C：默认
         return {
-          baseURL: aiConfig.customBaseUrl,
-          apiKey: aiConfig.customApiKey || "ollama", // Ollama 默认通常不需要有效 Key
+          baseURL:
+            process.env.DEEPSEEK_API_URL ||
+            OFFICIAL_URL_MAP[CredentialType.DEEPSEEK]!,
+          apiKey: process.env.DEEPSEEK_API_KEY as string,
+          modelId: "deepseek-chat",
         };
-      }
-
-      // 场景 B：用户选择了现有凭证
-      if (aiConfig?.credentialId) {
-        const credential = await prisma.credential.findUniqueOrThrow({
-          where: { id: aiConfig.credentialId, userId },
-        });
-
-        // 严格使用你的加密体系进行解密
-        const apiKey = decrypt(credential.value);
-        // 根据凭证类型映射官方 URL
-        const baseURL =
-          OFFICIAL_URL_MAP[credential.type] ||
-          OFFICIAL_URL_MAP[CredentialType.OPENAI];
-
-        return { baseURL, apiKey };
-      }
-
-      // 场景 C：回退到系统环境变量 (作为保底方案)
-      return {
-        baseURL:
-          process.env.DEEPSEEK_API_URL ||
-          OFFICIAL_URL_MAP[CredentialType.DEEPSEEK],
-        apiKey: process.env.DEEPSEEK_API_KEY as string,
-      };
-    });
+      },
+    );
 
     // 2. 存入用户消息到数据库，以便前端轮询展示
     await step.run("save-user-message", async () => {
@@ -102,7 +118,7 @@ export const handleChatMessage = inngest.createFunction(
       });
 
       const { text } = await generateText({
-        model: provider("deepseek-chat"), // 兼容大部分 OpenAI 协议供应商
+        model: provider(resolvedConfig.modelId),
         system: `你是一个专业的 Nodebase 工作流诊断专家。你会分析用户的画布结构并给出逻辑建议。不要胡乱猜测，基于以下事实回答：\n${workflowContext}`,
         prompt: message,
       });
@@ -125,7 +141,7 @@ export const executeWorkflow = inngest.createFunction(
   {
     id: "execute-workflow",
     retries: process.env.NODE_ENV === "production" ? 3 : 0,
-    onFailure: async ({ event, step, publish }) => {
+    onFailure: async ({ event }) => {
       const updatedExecution = await prisma.execution.update({
         where: { inngestEventId: event.data.event.id },
         data: {

@@ -361,10 +361,6 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
             </Panel>
           )}
 
-          <Panel position="top-right">
-            <AddNodeButton />
-          </Panel>
-
           {isNarrow && (
             <Panel position="bottom-right" className="sm:hidden">
               <TriggerHideMiniMapWhenNarrowButton
@@ -396,8 +392,10 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
       {/* 右侧：成熟的侧边栏布局 */}
       <div
         className={cn(
-          "h-full border-l bg-muted/5 transition-all duration-300 ease-in-out overflow-hidden",
-          isChatOpen ? "w-[400px] opacity-100" : "w-0 opacity-0 border-l-0",
+          "h-full border-l bg-muted/5 transition-all duration-300 ease-in-out overflow-hidden shrink-0",
+          isChatOpen
+            ? "w-[400px] opacity-100"
+            : "w-0 opacity-0 overflow-hidden border-l-0",
         )}
       >
         {/* 只有在展开时才渲染内容，节省性能 */}

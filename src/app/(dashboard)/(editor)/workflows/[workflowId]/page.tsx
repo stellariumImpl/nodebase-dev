@@ -26,10 +26,16 @@ const Page = async ({ params }: PageProps) => {
     <HydrateClient>
       <ErrorBoundary fallback={<EditorError />}>
         <Suspense fallback={<EditorLoading />}>
-          <EditorHeader workflowId={workflowId} />
-          <main className="flex-1">
-            <Editor workflowId={workflowId} />
-          </main>
+          {/* 1. 关键：外层增加一个 flex-col 容器，强制占据整个视口高度 */}
+          <div className="flex flex-col h-screen w-full overflow-hidden">
+            <EditorHeader workflowId={workflowId} />
+
+            {/* 3. 主体：flex-1 会自动填满除去 Header 后的所有剩余高度 */}
+            {/* min-h-0 是 Flex 布局的黑科技，防止内容撑破容器 */}
+            <main className="flex-1 min-h-0 relative">
+              <Editor workflowId={workflowId} />
+            </main>
+          </div>
         </Suspense>
       </ErrorBoundary>
     </HydrateClient>

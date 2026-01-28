@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
 import { ChatMessageModel as ChatMessage } from "@/generated/prisma/models";
@@ -44,6 +44,9 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // ✅ 当用户发送消息时，强制滚动到底部一次（即使用户在看历史）
+  const forceScrollOnNextMessagesRef = useRef(false);
+
   // --- 混合模式状态管理 ---
   const [configMode, setConfigMode] = useState<ConfigMode>("credential");
   const [selectedCredentialId, setSelectedCredentialId] = useState<string>("");
@@ -67,6 +70,21 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     trpc.credentials.getMany.queryOptions({ pageSize: 50 }),
   );
 
+  // ✅ 获取 ScrollArea viewport
+  const getViewport = useCallback(() => {
+    const root = scrollRef.current;
+    if (!root) return null;
+    return root.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    ) as HTMLElement | null;
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const viewport = getViewport();
+    if (!viewport) return;
+    viewport.scrollTop = viewport.scrollHeight;
+  }, [getViewport]);
+
   // 3. 发送消息 Mutation
   const sendMessage = useMutation(
     trpc.workflows.sendChatMessage.mutationOptions({
@@ -79,22 +97,35 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     }),
   );
 
-  // 4. 自动滚动到底部
+  // ✅ 自动滚动规则：
+  // - 平时：仅当“接近底部”时才自动贴底（不打扰用户上滑）
+  // - 但如果用户刚刚从输入框发送了消息：强制贴底一次
   useEffect(() => {
-    if (scrollRef.current) {
-      const viewport = scrollRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]",
-      ) as HTMLElement | null;
+    const viewport = getViewport();
+    if (!viewport) return;
 
-      if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
-      }
+    // 如果刚刚发送过消息（用户主动交互），强制贴底一次
+    if (forceScrollOnNextMessagesRef.current) {
+      forceScrollOnNextMessagesRef.current = false;
+      requestAnimationFrame(scrollToBottom);
+      return;
     }
-  }, [messages]);
+
+    const distanceToBottom =
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    const isNearBottom = distanceToBottom < 80;
+
+    if (isNearBottom) {
+      requestAnimationFrame(scrollToBottom);
+    }
+  }, [messages, getViewport, scrollToBottom]);
 
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || sendMessage.isPending) return;
+
+    // ✅ 关键：用户主动发送 -> 下一次 messages 更新时强制贴底
+    forceScrollOnNextMessagesRef.current = true;
 
     // 组装 AI 配置参数
     const aiConfig =
@@ -110,12 +141,15 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
       message: trimmed,
       aiConfig, // 传递给后端 handleChatMessage 处理
     });
+
+    // 也可以立即滚一次（更“即时”），不等轮询回来
+    requestAnimationFrame(scrollToBottom);
   };
 
   return (
-    <div className="flex flex-col h-full bg-background border-l shadow-sm">
+    <div className="flex flex-col h-full bg-background overflow-hidden border-l shadow-sm">
       {/* 头部：包含配置开关 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20 shrink-0">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary animate-pulse" />
           <h2 className="text-sm font-bold tracking-tight">AI Agent Copilot</h2>
@@ -246,48 +280,50 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
         </div>
       </div>
 
-      <ScrollArea ref={scrollRef} className="flex-1 p-4 bg-dot-pattern">
-        {isLoading && (
-          <div className="text-center text-xs text-muted-foreground mt-4 italic">
-            同步历史记录...
-          </div>
-        )}
+      <ScrollArea ref={scrollRef} className="flex-1 p-4 bg-dot-pattern min-h-0">
+        <div className="flex flex-col min-h-full">
+          {isLoading && (
+            <div className="text-center text-xs text-muted-foreground mt-4 italic">
+              同步历史记录...
+            </div>
+          )}
 
-        {messages?.map((m: ChatMessage) => (
-          <div
-            key={m.id}
-            className={cn(
-              "mb-4 flex flex-col",
-              m.role === "user" ? "items-end" : "items-start",
-            )}
-          >
+          {messages?.map((m: ChatMessage) => (
             <div
+              key={m.id}
               className={cn(
-                "px-3 py-2 rounded-2xl text-[13px] leading-relaxed max-w-[90%] shadow-sm",
-                m.role === "user"
-                  ? "bg-primary text-primary-foreground rounded-tr-none"
-                  : "bg-background border rounded-tl-none text-foreground",
+                "mb-4 flex flex-col",
+                m.role === "user" ? "items-end" : "items-start",
               )}
             >
-              {m.content}
+              <div
+                className={cn(
+                  "px-3 py-2 rounded-2xl text-[13px] leading-relaxed max-w-[90%] shadow-sm",
+                  m.role === "user"
+                    ? "bg-primary text-primary-foreground rounded-tr-none"
+                    : "bg-background border rounded-tl-none text-foreground",
+                )}
+              >
+                {m.content}
+              </div>
+              <span className="text-[10px] text-muted-foreground mt-1 px-1">
+                {m.role === "user" ? "你" : "AI 助手"}
+              </span>
             </div>
-            <span className="text-[10px] text-muted-foreground mt-1 px-1">
-              {m.role === "user" ? "你" : "AI 助手"}
-            </span>
-          </div>
-        ))}
+          ))}
 
-        {sendMessage.isPending && (
-          <div className="flex flex-col items-end mb-4 opacity-50 animate-pulse">
-            <div className="bg-primary text-primary-foreground px-3 py-2 rounded-2xl rounded-tr-none text-[13px]">
-              正在发送请求...
+          {sendMessage.isPending && (
+            <div className="flex flex-col items-end mb-4 opacity-50 animate-pulse">
+              <div className="bg-primary text-primary-foreground px-3 py-2 rounded-2xl rounded-tr-none text-[13px]">
+                正在发送请求...
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </ScrollArea>
 
       {/* 输入区域 */}
-      <div className="p-4 border-t bg-background">
+      <div className="p-4 border-t bg-background shrink-0">
         <div className="relative flex items-center gap-2 bg-muted/50 p-1.5 rounded-xl border border-input focus-within:ring-1 focus-within:ring-primary transition-all">
           <Input
             value={input}
