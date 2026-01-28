@@ -2,7 +2,12 @@
 
 import { createId } from "@paralleldrive/cuid2";
 import { useReactFlow } from "@xyflow/react";
-import { GlobeIcon, MousePointerIcon, WebhookIcon } from "lucide-react";
+import {
+  GlobeIcon,
+  MessageSquareIcon,
+  MousePointerIcon,
+  WebhookIcon,
+} from "lucide-react";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import {
@@ -42,6 +47,12 @@ const triggerNodes: NodeTypeOption[] = [
     label: "Stripe Event",
     description: "Runs the flow when a Stripe Event is captured.",
     icon: "/logos/stripe.svg",
+  },
+  {
+    type: NodeType.CHAT_TRIGGER,
+    label: "Chat Trigger",
+    description: "Runs the flow when a message is sent in chat.",
+    icon: MessageSquareIcon,
   },
 ];
 

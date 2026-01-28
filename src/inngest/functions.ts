@@ -39,115 +39,168 @@ type ResolvedAIConfig = {
 /**
  * 专门处理 AI 对话的函数
  */
+// export const handleChatMessage = inngest.createFunction(
+//   { id: "handle-chat-message" },
+//   { event: "chat/message.sent" },
+//   async ({ event, step }) => {
+//     const { workflowId, userId, message, aiConfig } = event.data;
+
+//     // 1. 解析 AI 配置 (不再负责保存用户消息，消息已在 Router 存入)
+//     const resolvedConfig: ResolvedAIConfig = await step.run(
+//       "resolve-ai-config",
+//       async () => {
+//         try {
+//           if (aiConfig?.customBaseUrl) {
+//             return {
+//               baseURL: aiConfig.customBaseUrl,
+//               apiKey: aiConfig.customApiKey || "ollama",
+//               modelId: "llama3.1",
+//               providerType: "CUSTOM" as const,
+//             };
+//           }
+
+//           if (aiConfig?.credentialId) {
+//             const credential = await prisma.credential.findUniqueOrThrow({
+//               where: { id: aiConfig.credentialId, userId },
+//             });
+//             return {
+//               baseURL:
+//                 OFFICIAL_URL_MAP[credential.type] ||
+//                 OFFICIAL_URL_MAP[CredentialType.OPENAI]!,
+//               apiKey: decrypt(credential.value),
+//               modelId: OFFICIAL_MODEL_MAP[credential.type] || "gpt-4o",
+//               providerType: credential.type,
+//             };
+//           }
+
+//           return {
+//             baseURL:
+//               process.env.DEEPSEEK_API_URL ||
+//               OFFICIAL_URL_MAP[CredentialType.DEEPSEEK]!,
+//             apiKey: process.env.DEEPSEEK_API_KEY as string,
+//             modelId: "deepseek-chat",
+//             providerType: CredentialType.DEEPSEEK,
+//           };
+//         } catch (err: any) {
+//           throw new NonRetriableError(`AI 配置错误: ${err.message}`);
+//         }
+//       },
+//     );
+
+//     // 2. ✅ 低成本优化：语义化上下文感知 (将 UUID 转换为节点名称)
+//     const workflowContext = await step.run("get-workflow-context", async () => {
+//       const workflow = await prisma.workflow.findUnique({
+//         where: { id: workflowId },
+//         include: { nodes: true, connections: true },
+//       });
+//       if (!workflow || workflow.nodes.length === 0)
+//         return "当前是一个空工作流。";
+
+//       const nodeMap = new Map(workflow.nodes.map((n) => [n.id, n.name]));
+
+//       const nodeInfo = workflow.nodes
+//         .map((n) => `- ${n.name} (类型: ${n.type})`)
+//         .join("\n");
+
+//       const connectionInfo = workflow.connections
+//         .map((c) => {
+//           const fromName = nodeMap.get(c.fromNodeId) || "未知节点";
+//           const toName = nodeMap.get(c.toNodeId) || "未知节点";
+//           return `- [${fromName}] --> [${toName}]`;
+//         })
+//         .join("\n");
+
+//       return `【画布节点】\n${nodeInfo}\n\n【语义化执行链路】\n${connectionInfo || "暂无连线"}`;
+//     });
+
+//     // 3. 调用 AI 生成回复
+//     const aiReply = await step.run("call-ai", async () => {
+//       try {
+//         const provider =
+//           resolvedConfig.providerType === CredentialType.DEEPSEEK
+//             ? createDeepSeek({
+//                 apiKey: resolvedConfig.apiKey,
+//                 baseURL: resolvedConfig.baseURL,
+//               })
+//             : createOpenAI({
+//                 apiKey: resolvedConfig.apiKey,
+//                 baseURL: resolvedConfig.baseURL,
+//               });
+
+//         const { text } = await generateText({
+//           model: provider(resolvedConfig.modelId),
+//           system: `你是一个专业的 Nodebase 诊断专家。请基于以下语义化链路回答，不要胡乱猜测：\n\n${workflowContext}`,
+//           prompt: message,
+//         });
+//         return text;
+//       } catch (error: any) {
+//         const status = error?.status || 500;
+//         if (status === 401 || status === 404) {
+//           throw new NonRetriableError(
+//             `AI 调用失败 (${status}): ${error.message}`,
+//           );
+//         }
+//         throw error;
+//       }
+//     });
+
+//     // 4. 将 AI 的回复存入数据库
+//     await step.run("save-assistant-message", async () => {
+//       return prisma.chatMessage.create({
+//         data: { workflowId, role: "assistant", content: aiReply },
+//       });
+//     });
+
+//     return { success: true };
+//   },
+// );
+
 export const handleChatMessage = inngest.createFunction(
   { id: "handle-chat-message" },
   { event: "chat/message.sent" },
   async ({ event, step }) => {
-    const { workflowId, userId, message, aiConfig } = event.data;
+    const { workflowId, message } = event.data;
 
-    // 1. 解析 AI 配置 (不再负责保存用户消息，消息已在 Router 存入)
-    const resolvedConfig: ResolvedAIConfig = await step.run(
-      "resolve-ai-config",
-      async () => {
-        try {
-          if (aiConfig?.customBaseUrl) {
-            return {
-              baseURL: aiConfig.customBaseUrl,
-              apiKey: aiConfig.customApiKey || "ollama",
-              modelId: "llama3.1",
-              providerType: "CUSTOM" as const,
-            };
-          }
-
-          if (aiConfig?.credentialId) {
-            const credential = await prisma.credential.findUniqueOrThrow({
-              where: { id: aiConfig.credentialId, userId },
-            });
-            return {
-              baseURL:
-                OFFICIAL_URL_MAP[credential.type] ||
-                OFFICIAL_URL_MAP[CredentialType.OPENAI]!,
-              apiKey: decrypt(credential.value),
-              modelId: OFFICIAL_MODEL_MAP[credential.type] || "gpt-4o",
-              providerType: credential.type,
-            };
-          }
-
-          return {
-            baseURL:
-              process.env.DEEPSEEK_API_URL ||
-              OFFICIAL_URL_MAP[CredentialType.DEEPSEEK]!,
-            apiKey: process.env.DEEPSEEK_API_KEY as string,
-            modelId: "deepseek-chat",
-            providerType: CredentialType.DEEPSEEK,
-          };
-        } catch (err: any) {
-          throw new NonRetriableError(`AI 配置错误: ${err.message}`);
-        }
-      },
-    );
-
-    // 2. ✅ 低成本优化：语义化上下文感知 (将 UUID 转换为节点名称)
-    const workflowContext = await step.run("get-workflow-context", async () => {
+    // 1. Agent 规划
+    const analysis = await step.run("agent-plan", async () => {
       const workflow = await prisma.workflow.findUnique({
         where: { id: workflowId },
-        include: { nodes: true, connections: true },
+        include: { nodes: true },
       });
-      if (!workflow || workflow.nodes.length === 0)
-        return "当前是一个空工作流。";
 
-      const nodeMap = new Map(workflow.nodes.map((n) => [n.id, n.name]));
+      if (!workflow) return { shouldExecute: false };
 
-      const nodeInfo = workflow.nodes
-        .map((n) => `- ${n.name} (类型: ${n.type})`)
-        .join("\n");
+      const hasChatTrigger = workflow.nodes.some(
+        (n) => n.type === "CHAT_TRIGGER",
+      );
 
-      const connectionInfo = workflow.connections
-        .map((c) => {
-          const fromName = nodeMap.get(c.fromNodeId) || "未知节点";
-          const toName = nodeMap.get(c.toNodeId) || "未知节点";
-          return `- [${fromName}] --> [${toName}]`;
-        })
-        .join("\n");
-
-      return `【画布节点】\n${nodeInfo}\n\n【语义化执行链路】\n${connectionInfo || "暂无连线"}`;
+      return {
+        shouldExecute: hasChatTrigger,
+        reason: hasChatTrigger ? "发现对话触发器。" : "未配置对话触发器。",
+      };
     });
 
-    // 3. 调用 AI 生成回复
-    const aiReply = await step.run("call-ai", async () => {
-      try {
-        const provider =
-          resolvedConfig.providerType === CredentialType.DEEPSEEK
-            ? createDeepSeek({
-                apiKey: resolvedConfig.apiKey,
-                baseURL: resolvedConfig.baseURL,
-              })
-            : createOpenAI({
-                apiKey: resolvedConfig.apiKey,
-                baseURL: resolvedConfig.baseURL,
-              });
+    // 2. ✅ 修复：使用 sendEvent 并提供 Step ID
+    if (analysis.shouldExecute) {
+      await step.sendEvent("trigger-workflow-execution", {
+        name: "workflow/execute.workflow",
+        data: {
+          workflowId,
+          initialData: { message },
+        },
+      });
+    }
 
-        const { text } = await generateText({
-          model: provider(resolvedConfig.modelId),
-          system: `你是一个专业的 Nodebase 诊断专家。请基于以下语义化链路回答，不要胡乱猜测：\n\n${workflowContext}`,
-          prompt: message,
-        });
-        return text;
-      } catch (error: any) {
-        const status = error?.status || 500;
-        if (status === 401 || status === 404) {
-          throw new NonRetriableError(
-            `AI 调用失败 (${status}): ${error.message}`,
-          );
-        }
-        throw error;
-      }
-    });
-
-    // 4. 将 AI 的回复存入数据库
-    await step.run("save-assistant-message", async () => {
-      return prisma.chatMessage.create({
-        data: { workflowId, role: "assistant", content: aiReply },
+    // 3. 反馈
+    await step.run("save-assistant-reply", async () => {
+      await prisma.chatMessage.create({
+        data: {
+          workflowId,
+          role: "assistant",
+          content: analysis.shouldExecute
+            ? "收到！我已发现画布中的对话触发器，正在自动执行工作流..."
+            : "收到消息。但当前画布没有配置对话触发器，我无法自动启动流程。",
+        },
       });
     });
 
