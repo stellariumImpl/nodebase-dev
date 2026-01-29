@@ -14,6 +14,33 @@ const clearStoredStatuses = (workflowId: string) => {
   window.localStorage.removeItem(`workflow-node-status:${workflowId}`);
 };
 
+const getResetStorageKey = (workflowId: string) =>
+  `workflow-node-status-reset:${workflowId}`;
+
+const readStoredResetExecutionId = (workflowId: string) => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.localStorage.getItem(getResetStorageKey(workflowId));
+  if (!raw) {
+    return null;
+  }
+
+  return raw;
+};
+
+const writeStoredResetExecutionId = (
+  workflowId: string,
+  executionId: string,
+) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(getResetStorageKey(workflowId), executionId);
+};
+
 export const useWorkflowReset = (workflowId: string) => {
   const triggerNodeStatusReset = useSetAtom(triggerNodeStatusResetAtom);
   const { data } = useInngestSubscription({
@@ -51,11 +78,18 @@ export const useWorkflowReset = (workflowId: string) => {
       return;
     }
 
-    if (latestReset.data.executionId === lastExecutionIdRef.current) {
+    const storedExecutionId = readStoredResetExecutionId(workflowId);
+    if (
+      latestReset.data.executionId === lastExecutionIdRef.current ||
+      latestReset.data.executionId === storedExecutionId
+    ) {
       return;
     }
 
     lastExecutionIdRef.current = latestReset.data.executionId;
+
+    writeStoredResetExecutionId(workflowId, latestReset.data.executionId);
+
     triggerNodeStatusReset(new Date(latestReset.createdAt).getTime());
     clearStoredStatuses(workflowId);
   }, [latestReset, triggerNodeStatusReset, workflowId]);

@@ -79,6 +79,7 @@ export function useNodeStatus({
 
   // Track the last reset time to filter messages
   const lastResetTimeRef = useRef<number>(0);
+  const hasHydratedStatusRef = useRef(false);
 
   // Reset status when workflow execution starts
   useEffect(() => {
@@ -134,6 +135,10 @@ export function useNodeStatus({
     const storedStatuses = readStoredStatuses(workflowId);
 
     if (status === "initial") {
+      if (!hasHydratedStatusRef.current || lastResetTimeRef.current === 0) {
+        return;
+      }
+
       if (storedStatuses[nodeId]) {
         delete storedStatuses[nodeId];
         writeStoredStatuses(workflowId, storedStatuses);
