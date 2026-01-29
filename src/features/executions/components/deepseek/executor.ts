@@ -91,38 +91,40 @@ export const deepseekExecutor: NodeExecutor<DeepSeekNodeData> = async ({
     },
   ];
 
-  // Fetch credential from database
-  const credential = await step.run("fetch-deepseek-credential", async () => {
-    const credentialRecord = await prisma.credential.findUnique({
-      where: {
-        id: data.credentialId,
-        type: CredentialType.DEEPSEEK,
-        userId,
-      },
+  try {
+    // Fetch credential from database
+    const credential = await step.run("fetch-deepseek-credential", async () => {
+      const credentialRecord = await prisma.credential.findUnique({
+        where: {
+          id: data.credentialId,
+          type: CredentialType.DEEPSEEK,
+          userId,
+        },
+      });
+
+      if (!credentialRecord) {
+        throw new NonRetriableError("DeepSeek node: Credential not found");
+      }
+
+      if (!credentialRecord.value) {
+        throw new NonRetriableError(
+          "DeepSeek node: Credential value is missing",
+        );
+      }
+
+      return credentialRecord.value;
     });
 
-    if (!credentialRecord) {
-      throw new NonRetriableError("DeepSeek node: Credential not found");
-    }
+    // const systemPrompt = data.systemPrompt
+    //   ? Handlebars.compile(data.systemPrompt)(context)
+    //   : "You are a helpful assistant.";
 
-    if (!credentialRecord.value) {
-      throw new NonRetriableError("DeepSeek node: Credential value is missing");
-    }
+    // const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
-    return credentialRecord.value;
-  });
+    const deepseek = createDeepSeek({
+      apiKey: decrypt(credential),
+    });
 
-  // const systemPrompt = data.systemPrompt
-  //   ? Handlebars.compile(data.systemPrompt)(context)
-  //   : "You are a helpful assistant.";
-
-  // const userPrompt = Handlebars.compile(data.userPrompt)(context);
-
-  const deepseek = createDeepSeek({
-    apiKey: decrypt(credential),
-  });
-
-  try {
     const { steps } = await step.ai.wrap(
       "deepseek-generate-text",
       generateText,

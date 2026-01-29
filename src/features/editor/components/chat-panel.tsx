@@ -45,8 +45,6 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
 
   const hasInitialScrollRef = useRef(false);
   const lastUserMessageAtRef = useRef<Date | null>(null);
-
-  //  当用户发送消息时，强制滚动到底部一次（即使用户在看历史）
   const forceScrollOnNextMessagesRef = useRef(false);
 
   // --- 混合模式状态管理 ---
@@ -59,7 +57,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
-  // 1. 获取消息历史 - 优化轮询频率
+  // 1. 获取消息历史
   const { data: messages, isLoading } = useQuery(
     trpc.workflows.getChatMessages.queryOptions(
       { workflowId },
@@ -75,7 +73,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     trpc.credentials.getMany.queryOptions({ pageSize: 50 }),
   );
 
-  //  获取 ScrollArea viewport
+  // 获取 ScrollArea viewport
   const getViewport = useCallback(() => {
     const root = scrollRef.current;
     if (!root) return null;
@@ -145,24 +143,15 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     }),
   );
 
-  //  自动滚动规则：
-  // - 平时：仅当“接近底部”时才自动贴底（不打扰用户上滑）
-  // - 但如果用户刚刚从输入框发送了消息：强制贴底一次
+  // 自动滚动逻辑
   useEffect(() => {
     const viewport = getViewport();
     if (!viewport) return;
 
-    // 修复1：给 viewport 添加 padding，确保内容不会被滚动条遮挡
+    // 修复：确保移动端和桌面端都有合适的 padding
     viewport.style.paddingRight = "16px";
-    viewport.style.paddingLeft = "16px"; // 如果需要左右对称
+    viewport.style.paddingLeft = "16px";
     viewport.style.boxSizing = "border-box";
-
-    // 修复2：确保内容容器也有正确的宽度
-    const content = viewport.firstElementChild as HTMLElement;
-    if (content) {
-      content.style.width = "100%";
-      content.style.boxSizing = "border-box";
-    }
 
     if (!hasInitialScrollRef.current && (messages?.length ?? 0) > 0) {
       hasInitialScrollRef.current = true;
@@ -230,7 +219,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
 
   return (
     <div className="flex flex-col h-full w-full min-w-0 bg-background overflow-hidden shadow-sm">
-      {/* 头部：包含配置开关 */}
+      {/* 头部 */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20 shrink-0">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary animate-pulse" />
@@ -363,40 +352,55 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
         </div>
       </div>
 
+      {/* 消息区域 - 关键修复部分 */}
       <ScrollArea ref={scrollRef} className="flex-1 min-h-0 w-full">
-        {/* 内容容器使用专门的类名控制宽度 */}
-        <div className="p-4 pr-8 pl-4 w-full max-w-full box-border">
-          {/* 消息内容 */}
+        <div className="p-4 w-full max-w-full box-border">
+          {isLoading && (
+            <div className="text-center text-xs text-muted-foreground mt-4 italic">
+              同步历史记录...
+            </div>
+          )}
+
           {messages?.map((m: ChatMessage) => (
             <div
               key={m.id}
               className={cn(
-                "mb-4 w-full flex max-w-full", // 添加 max-w-full
+                "mb-4 w-full flex max-w-full",
                 m.role === "user" ? "justify-end" : "justify-start",
               )}
             >
               <div
                 className={cn(
-                  "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm wrap-break-word",
-                  "max-w-[calc(100%-0rem)]", // 关键：确保不超过容器宽度
+                  "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm",
+                  "w-auto min-w-[80px] max-w-[calc(100vw-4rem)]", // 重点：手机端用 calc(100vw-4rem)
+                  "sm:max-w-[75vw] md:max-w-[65vw] lg:max-w-[55vw]", // 其他断点不变
                   m.role === "user"
                     ? "bg-primary text-primary-foreground rounded-tr-none"
                     : "bg-background border rounded-tl-none text-foreground",
                 )}
                 style={{
-                  wordBreak: "break-word", // 确保长单词也能换行
-                  overflowWrap: "break-word",
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere", // 更好的断词处理
                 }}
               >
                 {m.content}
               </div>
             </div>
           ))}
+
+          {isAwaitingAssistant && (
+            <div className="flex justify-start mb-4">
+              <div className="flex items-center gap-2 bg-background border px-4 py-3 rounded-2xl rounded-tl-none text-sm shadow-sm max-w-[calc(100vw-4rem)] sm:max-w-[75vw]">
+                <Loader2 className="size-4 animate-spin" />
+                <span className="text-muted-foreground">AI 正在思考...</span>
+              </div>
+            </div>
+          )}
         </div>
       </ScrollArea>
 
-      {/* 输入区域 */}
-      <div className="p-4 border-t bg-background shrink-0">
+      {/* 输入区域 - 移动端优化 */}
+      <div className="p-3 sm:p-4 border-t bg-background shrink-0">
         <div className="relative flex items-center gap-2 bg-muted/50 p-1.5 rounded-xl border border-input focus-within:ring-1 focus-within:ring-primary transition-all">
           <Input
             value={input}
@@ -406,7 +410,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
                 ? "通过自定义 URL 询问..."
                 : "询问 AI 关于工作流..."
             }
-            className="border-0 bg-transparent focus-visible:ring-0 h-9 text-sm flex-1"
+            className="border-0 bg-transparent focus-visible:ring-0 h-9 text-sm flex-1 min-w-0"
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             disabled={sendMessage.isPending}
           />

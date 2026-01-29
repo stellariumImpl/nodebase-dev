@@ -63,38 +63,38 @@ export const openaiExecutor: NodeExecutor<OpenAINodeData> = async ({
     throw new NonRetriableError("OpenAI node: Credential is required");
   }
 
-  // Fetch credential from database
-  const credential = await step.run("fetch-openai-credential", async () => {
-    const credentialRecord = await prisma.credential.findUnique({
-      where: {
-        id: data.credentialId,
-        type: CredentialType.OPENAI,
-        userId,
-      },
-    });
-
-    if (!credentialRecord) {
-      throw new NonRetriableError("OpenAI node: Credential not found");
-    }
-
-    if (!credentialRecord.value) {
-      throw new NonRetriableError("OpenAI node: Credential value is missing");
-    }
-
-    return credentialRecord.value;
-  });
-
   const systemPrompt = data.systemPrompt
     ? Handlebars.compile(data.systemPrompt)(context)
     : "You are a helpful assistant.";
 
   const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
-  const openai = createOpenAI({
-    apiKey: decrypt(credential),
-  });
-
   try {
+    // Fetch credential from database
+    const credential = await step.run("fetch-openai-credential", async () => {
+      const credentialRecord = await prisma.credential.findUnique({
+        where: {
+          id: data.credentialId,
+          type: CredentialType.OPENAI,
+          userId,
+        },
+      });
+
+      if (!credentialRecord) {
+        throw new NonRetriableError("OpenAI node: Credential not found");
+      }
+
+      if (!credentialRecord.value) {
+        throw new NonRetriableError("OpenAI node: Credential value is missing");
+      }
+
+      return credentialRecord.value;
+    });
+
+    const openai = createOpenAI({
+      apiKey: decrypt(credential),
+    });
+
     const { steps } = await step.ai.wrap("openai-generate-text", generateText, {
       model: openai("gpt-4o"), // Use a fixed model since we're now using credentials
       system: systemPrompt,

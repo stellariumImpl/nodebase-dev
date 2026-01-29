@@ -63,40 +63,43 @@ export const anthropicExecutor: NodeExecutor<AnthropicNodeData> = async ({
     throw new NonRetriableError("Anthropic node: Credential is required");
   }
 
-  // Fetch credential from database
-  const credential = await step.run("fetch-anthropic-credential", async () => {
-    const credentialRecord = await prisma.credential.findUnique({
-      where: {
-        id: data.credentialId,
-        type: CredentialType.ANTHROPIC,
-        userId,
-      },
-    });
-
-    if (!credentialRecord) {
-      throw new NonRetriableError("Anthropic node: Credential not found");
-    }
-
-    if (!credentialRecord.value) {
-      throw new NonRetriableError(
-        "Anthropic node: Credential value is missing",
-      );
-    }
-
-    return credentialRecord.value;
-  });
-
   const systemPrompt = data.systemPrompt
     ? Handlebars.compile(data.systemPrompt)(context)
     : "You are a helpful assistant.";
 
   const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
-  const anthropic = createAnthropic({
-    apiKey: decrypt(credential),
-  });
-
   try {
+    // Fetch credential from database
+    const credential = await step.run(
+      "fetch-anthropic-credential",
+      async () => {
+        const credentialRecord = await prisma.credential.findUnique({
+          where: {
+            id: data.credentialId,
+            type: CredentialType.ANTHROPIC,
+            userId,
+          },
+        });
+
+        if (!credentialRecord) {
+          throw new NonRetriableError("Anthropic node: Credential not found");
+        }
+
+        if (!credentialRecord.value) {
+          throw new NonRetriableError(
+            "Anthropic node: Credential value is missing",
+          );
+        }
+
+        return credentialRecord.value;
+      },
+    );
+
+    const anthropic = createAnthropic({
+      apiKey: decrypt(credential),
+    });
+
     const { steps } = await step.ai.wrap(
       "anthropic-generate-text",
       generateText,

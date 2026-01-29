@@ -61,38 +61,38 @@ export const geminiExecutor: NodeExecutor<GeminiNodeData> = async ({
     throw new NonRetriableError("Gemini node: Credential is required");
   }
 
-  // Fetch credential from database
-  const credential = await step.run("fetch-gemini-credential", async () => {
-    const credentialRecord = await prisma.credential.findUnique({
-      where: {
-        id: data.credentialId,
-        type: CredentialType.GEMINI,
-        userId,
-      },
-    });
-
-    if (!credentialRecord) {
-      throw new NonRetriableError("Gemini node: Credential not found");
-    }
-
-    if (!credentialRecord.value) {
-      throw new NonRetriableError("Gemini node: Credential value is missing");
-    }
-
-    return credentialRecord.value;
-  });
-
   const systemPrompt = data.systemPrompt
     ? Handlebars.compile(data.systemPrompt)(context)
     : "You are a helpful assistant.";
 
   const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
-  const google = createGoogleGenerativeAI({
-    apiKey: decrypt(credential),
-  });
-
   try {
+    // Fetch credential from database
+    const credential = await step.run("fetch-gemini-credential", async () => {
+      const credentialRecord = await prisma.credential.findUnique({
+        where: {
+          id: data.credentialId,
+          type: CredentialType.GEMINI,
+          userId,
+        },
+      });
+
+      if (!credentialRecord) {
+        throw new NonRetriableError("Gemini node: Credential not found");
+      }
+
+      if (!credentialRecord.value) {
+        throw new NonRetriableError("Gemini node: Credential value is missing");
+      }
+
+      return credentialRecord.value;
+    });
+
+    const google = createGoogleGenerativeAI({
+      apiKey: decrypt(credential),
+    });
+
     const { steps } = await step.ai.wrap("gemini-generate-text", generateText, {
       model: google("gemini-2.0-flash"),
       system: systemPrompt,

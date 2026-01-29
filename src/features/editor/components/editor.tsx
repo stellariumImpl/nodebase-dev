@@ -405,17 +405,24 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
         </ReactFlow>
       </div>
 
-      {/* 右侧：侧边栏布局 - 修复显示不全问题 */}
+      {/* 移动端：全屏覆盖的 Chat 面板 */}
+      {isChatOpen && (
+        <div className="md:hidden fixed inset-0 z-50 bg-background">
+          <ChatPanel
+            workflowId={workflowId}
+            onClose={() => setIsChatOpen(false)}
+          />
+        </div>
+      )}
+
+      {/* 桌面端：侧边栏 Chat 面板 */}
       <div
         className={cn(
-          "h-full border-l bg-muted/5 transition-all duration-300 ease-in-out",
+          "hidden md:block h-full border-l bg-muted/5 transition-all duration-300 ease-in-out",
           isChatOpen
             ? "w-[400px] lg:w-[500px] xl:w-[600px] opacity-100"
             : "w-0 opacity-0 overflow-hidden border-l-0",
         )}
-        style={{
-          maxWidth: "35vw", // 确保不会太宽
-        }}
       >
         {isChatOpen && (
           <ChatPanel

@@ -67,9 +67,11 @@ export const ExecutionView = ({ executionId }: { executionId: string }) => {
       <CardHeader>
         <div className="flex items-center gap-3">
           {getStatusIcon(execution.status)}
-          <div>
-            <CardTitle>{formatStatus(execution.status)}</CardTitle>
-            <CardDescription>
+          <div className="min-w-0">
+            <CardTitle className="truncate">
+              {formatStatus(execution.status)}
+            </CardTitle>
+            <CardDescription className="truncate">
               Execution for {execution.workflow.name}
             </CardDescription>
           </div>
@@ -77,42 +79,42 @@ export const ExecutionView = ({ executionId }: { executionId: string }) => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-medium text-muted-foreground">
               Workflow
             </p>
             <Link
               href={`/workflows/${execution.workflowId}`}
               prefetch
-              className="text-sm hover:underline text-primary"
+              className="block text-sm hover:underline text-primary truncate"
             >
               {execution.workflow.name}
             </Link>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-medium text-muted-foreground">Status</p>
 
-            <p className="text-sm font-medium text-muted-foreground">
+            <p className="text-sm font-medium text-muted-foreground truncate">
               {formatStatus(execution.status)}
             </p>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-medium text-muted-foreground">Started</p>
 
-            <p className="text-sm font-medium text-muted-foreground">
+            <p className="text-sm font-medium text-muted-foreground truncate">
               {formatDistanceToNow(execution.startedAt, { addSuffix: true })}
             </p>
           </div>
 
           {execution.completedAt ? (
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-muted-foreground">
                 Completed
               </p>
 
-              <p className="text-sm font-medium text-muted-foreground">
+              <p className="text-sm font-medium text-muted-foreground truncate">
                 {formatDistanceToNow(execution.completedAt, {
                   addSuffix: true,
                 })}
@@ -121,24 +123,24 @@ export const ExecutionView = ({ executionId }: { executionId: string }) => {
           ) : null}
 
           {duration !== null ? (
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-muted-foreground">
                 Duration
               </p>
 
-              <p className="text-sm font-medium text-muted-foreground">
+              <p className="text-sm font-medium text-muted-foreground truncate">
                 {duration}s
               </p>
             </div>
           ) : null}
 
           {execution.inngestEventId ? (
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-muted-foreground">
                 Event ID
               </p>
 
-              <p className="text-sm font-medium text-muted-foreground">
+              <p className="text-sm font-medium text-muted-foreground truncate">
                 {execution.inngestEventId}
               </p>
             </div>
@@ -151,7 +153,7 @@ export const ExecutionView = ({ executionId }: { executionId: string }) => {
                   Error
                 </p>
                 <div className="bg-background/50 dark:bg-background/80 rounded border p-3">
-                  <p className="text-sm font-mono text-foreground">
+                  <p className="text-sm font-mono text-foreground truncate">
                     {execution.error}
                   </p>
                 </div>
@@ -172,23 +174,30 @@ export const ExecutionView = ({ executionId }: { executionId: string }) => {
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-3">
-                    <div className="bg-background/80 dark:bg-background/90 rounded border max-h-60 overflow-auto relative">
+                    {/* 修复：使用绝对定位的复制按钮 */}
+                    <div className="relative bg-background/80 dark:bg-background/90 rounded border max-h-60 overflow-hidden">
+                      {/* 绝对定位的复制按钮 - 固定在右上角 */}
                       <div className="absolute top-2 right-2 z-10">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 opacity-70 hover:opacity-100 transition-opacity"
+                          className="h-7 w-7 opacity-80 hover:opacity-100 transition-opacity bg-background/90 backdrop-blur-sm border shadow-sm"
                           onClick={() => {
-                            navigator.clipboard.writeText(execution.errorStack || "");
+                            navigator.clipboard.writeText(
+                              execution.errorStack || "",
+                            );
                             toast.success("Stack trace copied to clipboard");
                           }}
                         >
-                          <CopyIcon className="h-3 w-3" />
+                          <CopyIcon className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                      <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap p-3 pt-8">
-                        {execution.errorStack}
-                      </pre>
+                      {/* 内容区域带内边距，给按钮留出空间 */}
+                      <div className="h-full max-h-60 overflow-auto p-4 pr-12">
+                        <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap">
+                          {execution.errorStack}
+                        </pre>
+                      </div>
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
