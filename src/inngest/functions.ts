@@ -90,7 +90,7 @@ type ResolvedAIConfig = {
 //       },
 //     );
 
-//     // 2. ✅ 低成本优化：语义化上下文感知 (将 UUID 转换为节点名称)
+//     // 2.  低成本优化：语义化上下文感知 (将 UUID 转换为节点名称)
 //     const workflowContext = await step.run("get-workflow-context", async () => {
 //       const workflow = await prisma.workflow.findUnique({
 //         where: { id: workflowId },
@@ -183,7 +183,7 @@ export const handleChatMessage = inngest.createFunction(
       };
     });
 
-    // 2. ✅ 修复：使用 sendEvent 并提供 Step ID
+    // 2.  修复：使用 sendEvent 并提供 Step ID
     if (analysis.shouldExecute) {
       await step.sendEvent("trigger-workflow-execution", {
         name: "workflow/execute.workflow",
@@ -222,7 +222,7 @@ export const handleChatMessage = inngest.createFunction(
 );
 
 /**
- * ✅ 你的执行器逻辑，完整保留
+ *  你的执行器逻辑，完整保留
  */
 export const executeWorkflow = inngest.createFunction(
   {

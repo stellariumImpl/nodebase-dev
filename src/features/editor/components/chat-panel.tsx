@@ -37,7 +37,6 @@ interface ChatPanelProps {
   onClose: () => void;
 }
 
-// 定义配置模式
 type ConfigMode = "credential" | "manual";
 
 export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
@@ -47,7 +46,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
   const hasInitialScrollRef = useRef(false);
   const lastUserMessageAtRef = useRef<Date | null>(null);
 
-  // ✅ 当用户发送消息时，强制滚动到底部一次（即使用户在看历史）
+  //  当用户发送消息时，强制滚动到底部一次（即使用户在看历史）
   const forceScrollOnNextMessagesRef = useRef(false);
 
   // --- 混合模式状态管理 ---
@@ -65,8 +64,8 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     trpc.workflows.getChatMessages.queryOptions(
       { workflowId },
       {
-        refetchInterval: 1500, // 从3秒改为1.5秒，减少延迟感
-        staleTime: 0, // 立即过期，强制重新获取
+        refetchInterval: 1500,
+        staleTime: 0,
       },
     ),
   );
@@ -76,7 +75,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     trpc.credentials.getMany.queryOptions({ pageSize: 50 }),
   );
 
-  // ✅ 获取 ScrollArea viewport
+  //  获取 ScrollArea viewport
   const getViewport = useCallback(() => {
     const root = scrollRef.current;
     if (!root) return null;
@@ -146,7 +145,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     }),
   );
 
-  // ✅ 自动滚动规则：
+  //  自动滚动规则：
   // - 平时：仅当“接近底部”时才自动贴底（不打扰用户上滑）
   // - 但如果用户刚刚从输入框发送了消息：强制贴底一次
   useEffect(() => {
@@ -159,7 +158,6 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
       return;
     }
 
-    // 如果刚刚发送过消息（用户主动交互），强制贴底一次
     if (forceScrollOnNextMessagesRef.current) {
       forceScrollOnNextMessagesRef.current = false;
       requestAnimationFrame(scrollToBottom);
@@ -199,10 +197,8 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     const trimmed = input.trim();
     if (!trimmed || sendMessage.isPending) return;
 
-    // 用户主动发送 -> 下一次 messages 更新时强制贴底
     forceScrollOnNextMessagesRef.current = true;
 
-    // 组装 AI 配置参数
     const aiConfig =
       configMode === "credential"
         ? { credentialId: selectedCredentialId || undefined }
@@ -217,12 +213,11 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
       aiConfig,
     });
 
-    // 也可以立即滚一次（更“即时”），不等轮询回来
     requestAnimationFrame(scrollToBottom);
   };
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-hidden border-l shadow-sm">
+    <div className="flex flex-col h-full w-full min-w-0 bg-background overflow-hidden shadow-sm">
       {/* 头部：包含配置开关 */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20 shrink-0">
         <div className="flex items-center gap-2">
@@ -231,7 +226,6 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
         </div>
 
         <div className="flex items-center gap-1">
-          {/* AI 配置弹出层 */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="size-8">
@@ -243,9 +237,12 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
                 />
               </Button>
             </PopoverTrigger>
+
             <PopoverContent
               className="w-80 z-[60]"
               align="end"
+              sideOffset={8}
+              collisionPadding={12}
               onFocusOutside={(e) => {
                 if (
                   e.target instanceof Element &&
@@ -302,7 +299,6 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
                         <SelectValue placeholder="请选择凭证" />
                       </SelectTrigger>
 
-                      {/* 关键：层级高于 Popover */}
                       <SelectContent className="z-[80]">
                         {credentialsData?.items.map((c) => (
                           <SelectItem
@@ -355,46 +351,50 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
         </div>
       </div>
 
-      <ScrollArea ref={scrollRef} className="flex-1 p-4 bg-dot-pattern min-h-0">
-        <div className="flex flex-col min-h-full">
-          {isLoading && (
-            <div className="text-center text-xs text-muted-foreground mt-4 italic">
-              同步历史记录...
-            </div>
-          )}
+      {/*  关键：不要在 ScrollArea 根节点上加 p-4（容易让滚动条覆盖内容）
+          改为在内部内容容器加 padding，并额外加 pr-6 让内容永远不被右侧滚动条遮住 */}
+      <ScrollArea ref={scrollRef} className="flex-1 min-h-0 bg-dot-pattern">
+        <div className="p-4 pr-6 min-w-0">
+          <div className="flex flex-col min-h-full min-w-0">
+            {isLoading && (
+              <div className="text-center text-xs text-muted-foreground mt-4 italic">
+                同步历史记录...
+              </div>
+            )}
 
-          {messages?.map((m: ChatMessage) => (
-            <div
-              key={m.id}
-              className={cn(
-                "mb-4 flex flex-col",
-                m.role === "user" ? "items-end" : "items-start",
-              )}
-            >
+            {messages?.map((m: ChatMessage) => (
               <div
+                key={m.id}
                 className={cn(
-                  "px-3 py-2 rounded-2xl text-[13px] leading-relaxed max-w-[90%] shadow-sm",
-                  m.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-tr-none"
-                    : "bg-background border rounded-tl-none text-foreground",
+                  "mb-4 flex flex-col min-w-0",
+                  m.role === "user" ? "items-end" : "items-start",
                 )}
               >
-                {m.content}
+                <div
+                  className={cn(
+                    "px-3 py-2 rounded-2xl text-[13px] leading-relaxed max-w-[90%] shadow-sm break-words",
+                    m.role === "user"
+                      ? "bg-primary text-primary-foreground rounded-tr-none"
+                      : "bg-background border rounded-tl-none text-foreground",
+                  )}
+                >
+                  {m.content}
+                </div>
+                <span className="text-[10px] text-muted-foreground mt-1 px-1">
+                  {m.role === "user" ? "你" : "AI 助手"}
+                </span>
               </div>
-              <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                {m.role === "user" ? "你" : "AI 助手"}
-              </span>
-            </div>
-          ))}
+            ))}
 
-          {isAwaitingAssistant && (
-            <div className="flex flex-col items-start mb-4 text-muted-foreground">
-              <div className="flex items-center gap-2 bg-background border px-3 py-2 rounded-2xl rounded-tl-none text-[13px] shadow-sm">
-                <Loader2 className="size-4 animate-spin" />
-                AI 正在思考...
+            {isAwaitingAssistant && (
+              <div className="flex flex-col items-start mb-4 text-muted-foreground">
+                <div className="flex items-center gap-2 bg-background border px-3 py-2 rounded-2xl rounded-tl-none text-[13px] shadow-sm">
+                  <Loader2 className="size-4 animate-spin" />
+                  AI 正在思考...
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </ScrollArea>
 
