@@ -8,22 +8,17 @@ export const StripeTriggerExecutor: NodeExecutor<StripeTriggerData> = async ({
   context,
   step,
   publish,
+  workflowId,
 }) => {
-  await publish(
-    stripeTriggerChannel().status({
-      nodeId,
-      status: "loading",
-    }),
-  );
+  // Check if this is the active trigger for this execution
+  const isActiveTrigger = context.trigger?.type === "stripe";
+  
+  if (!isActiveTrigger) {
+    // Skip execution if this is not the active trigger
+    return context;
+  }
 
   const result = await step.run("stripe-trigger", async () => context);
-
-  await publish(
-    stripeTriggerChannel().status({
-      nodeId,
-      status: "success",
-    }),
-  );
 
   return result;
 };

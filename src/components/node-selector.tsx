@@ -2,7 +2,12 @@
 
 import { createId } from "@paralleldrive/cuid2";
 import { useReactFlow } from "@xyflow/react";
-import { GlobeIcon, MousePointerIcon, WebhookIcon } from "lucide-react";
+import {
+  GlobeIcon,
+  MessageSquareIcon,
+  MousePointerIcon,
+  WebhookIcon,
+} from "lucide-react";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import {
@@ -42,6 +47,12 @@ const triggerNodes: NodeTypeOption[] = [
     label: "Stripe Event",
     description: "Runs the flow when a Stripe Event is captured.",
     icon: "/logos/stripe.svg",
+  },
+  {
+    type: NodeType.CHAT_TRIGGER,
+    label: "Chat Trigger",
+    description: "Runs the flow when a message is sent in chat.",
+    icon: MessageSquareIcon,
   },
 ];
 
@@ -105,19 +116,59 @@ export function NodeSelector({
 
   const handleNodeSelect = useCallback(
     (selection: NodeTypeOption) => {
-      // Check if trying to add a manual trigger when one already exists
-      if (selection.type === NodeType.MANUAL_TRIGGER) {
-        const nodes = getNodes();
-        const hasManualTrigger = nodes.some(
-          (node) => node.type === NodeType.MANUAL_TRIGGER,
-        );
+      const nodes = getNodes();
 
-        if (hasManualTrigger) {
-          toast.error("Only one manual trigger is allowed per workflow");
+      // ---- 1) 定义：哪些算 trigger ----
+      const TRIGGER_TYPES = new Set<NodeType>([
+        NodeType.MANUAL_TRIGGER,
+        NodeType.CHAT_TRIGGER,
+        NodeType.GOOGLE_FORM_TRIGGER,
+        NodeType.STRIPE_TRIGGER,
+        // 如果未来还有更多 trigger，在这里补进去即可
+      ]);
+
+      const isTrigger = (t: NodeType) => TRIGGER_TYPES.has(t);
+      const isManualTrigger = (t: NodeType) => t === NodeType.MANUAL_TRIGGER;
+      const isNonManualTrigger = (t: NodeType) =>
+        isTrigger(t) && !isManualTrigger(t);
+
+      const hasManual = nodes.some((n) => n.type === NodeType.MANUAL_TRIGGER);
+      const hasAnyNonManualTrigger = nodes.some((n) =>
+        isNonManualTrigger(n.type as NodeType),
+      );
+
+      // ---- 2) 互斥规则：manual <-> 非manual ----
+      // 2.1 想加 manual：只要已有任意非manual trigger，就禁止
+      if (
+        selection.type === NodeType.MANUAL_TRIGGER &&
+        hasAnyNonManualTrigger
+      ) {
+        toast.error(
+          "Manual trigger cannot coexist with other triggers. Remove other triggers first.",
+        );
+        return;
+      }
+
+      // 2.2 想加非manual trigger：只要已有 manual，就禁止
+      if (isNonManualTrigger(selection.type) && hasManual) {
+        toast.error(
+          "Cannot add this trigger because manual trigger already exists. Remove manual trigger first.",
+        );
+        return;
+      }
+
+      // ---- 3) 你原本的“同类型 trigger 只能一个”规则（保留）----
+      if (isTrigger(selection.type)) {
+        const alreadyHasSameType = nodes.some(
+          (node) => node.type === selection.type,
+        );
+        if (alreadyHasSameType) {
+          toast.error("Only one of this trigger type is allowed per workflow");
           return;
         }
       }
 
+      // ---- 4) 原有添加节点逻辑保持不变 ----
       setNodes((nodes) => {
         const hasInitialTrigger = nodes.some(
           (node) => node.type === NodeType.INITIAL,

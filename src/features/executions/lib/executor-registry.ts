@@ -1,5 +1,8 @@
+import { z } from "zod";
 import { NodeType } from "@/generated/prisma/enums";
 import type { NodeExecutor } from "../types";
+
+// 导入执行器
 import { manualTriggerExecutor } from "@/features/triggers/components/manual-trigger/executor";
 import { httpRequestDataExecutor } from "../components/http-request/executor";
 import { GoogleFormTriggerExecutor } from "@/features/triggers/components/google-form-trigger/executor";
@@ -10,6 +13,25 @@ import { openaiExecutor } from "../components/openai/executor";
 import { anthropicExecutor } from "../components/anthropic/executor";
 import { discordExecutor } from "../components/discord/executor";
 import { slackExecutor } from "../components/slack/executor";
+import { chatTriggerExecutor } from "@/features/triggers/components/chat-trigger/executor";
+
+export const nodeMetadata: Record<
+  string,
+  { description: string; inputSchema: z.ZodObject<any> }
+> = {
+  [NodeType.OPENAI]: {
+    description: "利用大语言模型处理文本，擅长总结、推理及规划。",
+    inputSchema: z.object({ prompt: z.string().describe("发送给 AI 的指令") }),
+  },
+  [NodeType.SLACK]: {
+    description: "向 Slack 频道发送消息。",
+    inputSchema: z.object({ content: z.string().describe("消息正文") }),
+  },
+  [NodeType.CHAT_TRIGGER]: {
+    description: "由用户在对话框发送消息时触发。",
+    inputSchema: z.object({}),
+  },
+};
 
 export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.MANUAL_TRIGGER]: manualTriggerExecutor,
@@ -23,13 +45,11 @@ export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.OPENAI]: openaiExecutor,
   [NodeType.DISCORD]: discordExecutor,
   [NodeType.SLACK]: slackExecutor,
+  [NodeType.CHAT_TRIGGER]: chatTriggerExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {
   const executor = executorRegistry[type];
-  if (!executor) {
-    throw new Error(`No executor found for node type ${type}`);
-  }
-
+  if (!executor) throw new Error(`No executor found for node type ${type}`);
   return executor;
 };

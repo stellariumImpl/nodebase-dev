@@ -114,6 +114,8 @@ model Workflow {
 
   executions Execution[]
 
+  messages ChatMessage[] // 关联对话历史
+
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -133,6 +135,7 @@ enum NodeType{
   DEEPSEEK
   DISCORD
   SLACK
+  CHAT_TRIGGER
 }
 
 model Node {
@@ -201,4 +204,20 @@ model Execution{
 
   
 
+}
+
+model ChatMessage{
+  id String @id @default(cuid())
+  role String // "user" or "assistant"
+  content String @db.Text
+
+  // 关联到Workflow，这样每个工作流都有自己的对话记录
+  workflowId String
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // 每次记录更新时，Prisma会自动更新此时间
+
+  @@index([workflowId])
+  @@map("chat_message")
 }

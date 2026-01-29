@@ -478,13 +478,14 @@
 }
 
 @layer base {
-  /* 全局默认设置：
+  /* 全局默认设置： 
     让整个网站 (Body) 默认使用 merriweather,baskerville。
   */
   body {
     font-family:
-      var(--font-source-code-pro), var(--font-merriweather),
-      var(--font-baskerville), "Georgia", "Times New Roman", serif;
+      var(--font-ibm-plex-mono), var(--font-source-code-pro),
+      var(--font-merriweather), var(--font-baskerville), "Georgia",
+      "Times New Roman", serif;
   }
 
   /* 全局标题设置 (可选)：
@@ -536,5 +537,9 @@
 
   .font-source-code-pro {
     font-family: var(--font-source-code-pro), serif;
+  }
+
+  .font-ibm-plex-mono {
+    font-family: var(--font-ibm-plex-mono), monospace;
   }
 }

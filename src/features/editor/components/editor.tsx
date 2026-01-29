@@ -43,6 +43,15 @@ import {
 
 import { TriggerHideMiniMapWhenNarrowButton } from "./trigger-hide-minimap-when-narrow-button";
 
+import { ChatPanel } from "./chat-panel";
+import { Bot } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+
+import { cn } from "@/lib/utils";
+
+import { useWorkflowReset } from "@/features/executions/hooks/use-workflow-reset";
+
 export const EditorLoading = () => {
   return <LoadingView message="Loading editor..." />;
 };
@@ -101,7 +110,11 @@ const EditorSaveStatusPanel = () => {
 };
 
 export const Editor = ({ workflowId }: { workflowId: string }) => {
+  useWorkflowReset(workflowId);
   const { data: workflow } = useSuspenseWorkflow(workflowId);
+
+  // 侧边栏显示状态（后续考虑放进 Jotai atom 统一管理）
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const setEditor = useSetAtom(editorAtom);
   const saveStatus = useAtomValue(workflowSaveStatusAtom);
@@ -158,6 +171,17 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
   const hasManualTrigger = useMemo(() => {
     return nodes.some((node) => node.type === NodeType.MANUAL_TRIGGER);
   }, [nodes]);
+
+  const hasChatTrigger = useMemo(() => {
+    return nodes.some((node) => node.type === NodeType.CHAT_TRIGGER);
+  }, [nodes]);
+
+  // 当 chat trigger 被删除时，自动关闭聊天面板
+  useEffect(() => {
+    if (!hasChatTrigger && isChatOpen) {
+      setIsChatOpen(false);
+    }
+  }, [hasChatTrigger, isChatOpen]);
 
   const snapshot = useMemo(() => {
     return serializeWorkflowSnapshot(nodes, edges);
@@ -297,65 +321,107 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
   }, []);
 
   return (
-    <div className="size-full">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        nodeTypes={nodeComponents}
-        onInit={setEditor}
-        fitView
-        proOptions={{
-          hideAttribution: true,
-        }}
-        snapGrid={[10, 10]}
-        snapToGrid
-        panOnScroll
-        panOnDrag
-        selectionOnDrag={false}
+    // 核心重构：使用 flex 布局
+    <div className="flex h-full w-full overflow-hidden bg-background">
+      {/* 左侧：主画布区域 */}
+      <div className="relative flex-1 h-full min-w-0">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={nodeComponents}
+          onInit={setEditor}
+          fitView
+          proOptions={{
+            hideAttribution: true,
+          }}
+          snapGrid={[10, 10]}
+          snapToGrid
+          panOnScroll
+          panOnDrag
+          selectionOnDrag={false}
+        >
+          <Background />
+          <Controls />
+          <MiniMap className="hidden sm:block" />
+          <EditorSaveStatusPanel />
+          {/* 右上角：添加节点按钮 */}
+          <Panel position="top-right" className="flex flex-col gap-2">
+            <AddNodeButton />
+            {/* 新增：侧边栏开关按钮 - 只在有 chat trigger 时显示 */}
+            {hasChatTrigger && (
+              <Button
+                variant="secondary"
+                size="icon"
+                className={cn(
+                  "shadow-md border",
+                  isChatOpen && "bg-primary text-primary-foreground",
+                )}
+                onClick={() => setIsChatOpen(!isChatOpen)}
+              >
+                <Bot className="size-4" />
+              </Button>
+            )}
+          </Panel>
+
+          {/* 移动端适配：窄屏下的 MiniMap 逻辑 */}
+          {isNarrow && showMiniMapOnNarrow && (
+            <Panel
+              position="bottom-right"
+              className="sm:hidden"
+              style={{ marginBottom: 46, marginRight: 0 }}
+            >
+              <MiniMap className="block" />
+            </Panel>
+          )}
+
+          {isNarrow && (
+            <Panel position="bottom-right" className="sm:hidden">
+              <TriggerHideMiniMapWhenNarrowButton
+                isOpen={showMiniMapOnNarrow}
+                onToggle={handleToggleMiniMapOnNarrow}
+              />
+            </Panel>
+          )}
+
+          {hasManualTrigger && (
+            <Panel position="bottom-center">
+              <ExecuteWorkflowButton workflowId={workflowId} />
+            </Panel>
+          )}
+
+          {!isTouch && (
+            <Panel
+              position="top-left"
+              className="pointer-events-none select-none"
+            >
+              <div className="text-xs text-muted-foreground bg-background/70 backdrop-blur-sm px-2 py-1 rounded-md shadow-sm">
+                Select: Shift + Drag
+              </div>
+            </Panel>
+          )}
+        </ReactFlow>
+      </div>
+
+      {/* 右侧：成熟的侧边栏布局 */}
+      <div
+        className={cn(
+          "h-full border-l bg-muted/5 transition-all duration-300 ease-in-out overflow-hidden shrink-0",
+          isChatOpen
+            ? "w-[400px] opacity-100"
+            : "w-0 opacity-0 overflow-hidden border-l-0",
+        )}
       >
-        <Background />
-        <Controls />
-        <MiniMap className="hidden sm:block" />
-        <EditorSaveStatusPanel />
-        {isNarrow && showMiniMapOnNarrow && (
-          <Panel
-            position="bottom-right"
-            className="sm:hidden"
-            style={{ marginBottom: 46, marginRight: 0 }}
-          >
-            <MiniMap className="block" />
-          </Panel>
+        {/* 只有在展开时才渲染内容，节省性能 */}
+        {isChatOpen && (
+          <ChatPanel
+            workflowId={workflowId}
+            onClose={() => setIsChatOpen(false)}
+          />
         )}
-        <Panel position="top-right">
-          <AddNodeButton />
-        </Panel>
-        {isNarrow && (
-          <Panel position="bottom-right" className="sm:hidden">
-            <TriggerHideMiniMapWhenNarrowButton
-              isOpen={showMiniMapOnNarrow}
-              onToggle={handleToggleMiniMapOnNarrow}
-            />
-          </Panel>
-        )}
-        {hasManualTrigger && (
-          <Panel position="bottom-center">
-            <ExecuteWorkflowButton workflowId={workflowId} />
-          </Panel>
-        )}
-        {!isTouch && (
-          <Panel
-            position="top-left"
-            className="pointer-events-none select-none"
-          >
-            <div className="text-xs text-muted-foreground bg-background/70 backdrop-blur-sm px-2 py-1 rounded-md shadow-sm">
-              Select: Shift + Drag
-            </div>
-          </Panel>
-        )}
-      </ReactFlow>
+      </div>
     </div>
   );
 };
