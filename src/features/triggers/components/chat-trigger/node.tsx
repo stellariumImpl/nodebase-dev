@@ -1,5 +1,6 @@
 import { NodeProps } from "@xyflow/react";
 import { memo, useState } from "react";
+import { useParams } from "next/navigation";
 
 import { BaseTriggerNode } from "../base-trigger-node";
 import { MessageSquareIcon } from "lucide-react";
@@ -11,9 +12,12 @@ import { fetchChatTriggerRealtimeToken } from "./actions";
 
 export const ChatTriggerNode = memo((props: NodeProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const params = useParams();
+  const workflowId = params?.workflowId as string | undefined;
 
   const nodeStatus = useNodeStatus({
     nodeId: props.id,
+    workflowId,
     channel: CHAT_TRIGGER_CHANNEL_NAME,
     topic: "status",
     refreshToken: fetchChatTriggerRealtimeToken,

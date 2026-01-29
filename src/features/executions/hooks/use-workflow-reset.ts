@@ -6,6 +6,14 @@ import { fetchWorkflowResetToken } from "@/inngest/actions/workflow-reset";
 import { triggerNodeStatusResetAtom } from "@/features/executions/store/node-status-store";
 import { WORKFLOW_RESET_CHANNEL_NAME } from "@/inngest/channels/workflow-reset";
 
+const clearStoredStatuses = (workflowId: string) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(`workflow-node-status:${workflowId}`);
+};
+
 export const useWorkflowReset = (workflowId: string) => {
   const triggerNodeStatusReset = useSetAtom(triggerNodeStatusResetAtom);
   const { data } = useInngestSubscription({
@@ -13,7 +21,6 @@ export const useWorkflowReset = (workflowId: string) => {
     enabled: true,
   });
 
-  const startedAt = useRef<number>(Date.now());
   const lastExecutionIdRef = useRef<string | null>(null);
 
   const latestReset = useMemo(() => {
@@ -49,6 +56,7 @@ export const useWorkflowReset = (workflowId: string) => {
     }
 
     lastExecutionIdRef.current = latestReset.data.executionId;
-    triggerNodeStatusReset();
-  }, [latestReset, triggerNodeStatusReset]);
+    triggerNodeStatusReset(new Date(latestReset.createdAt).getTime());
+    clearStoredStatuses(workflowId);
+  }, [latestReset, triggerNodeStatusReset, workflowId]);
 };

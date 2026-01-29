@@ -78,6 +78,44 @@ export const topologicalSort = (
   return sortedNodeIds.map((id) => nodeMap.get(id)!).filter(Boolean);
 };
 
+export const getReachableNodeIds = (
+  nodes: SortableNode[],
+  connections: SortableConnection[],
+  startNodeId: string,
+) => {
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  if (!nodeIds.has(startNodeId)) {
+    return new Set<string>();
+  }
+
+  const adjacency = new Map<string, string[]>();
+  for (const connection of connections) {
+    if (!adjacency.has(connection.fromNodeId)) {
+      adjacency.set(connection.fromNodeId, []);
+    }
+    adjacency.get(connection.fromNodeId)?.push(connection.toNodeId);
+  }
+
+  const visited = new Set<string>();
+  const queue = [startNodeId];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || visited.has(current)) {
+      continue;
+    }
+    visited.add(current);
+    const neighbors = adjacency.get(current) ?? [];
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  return visited;
+};
+
 export const sendWorkflowExecution = async (data: {
   workflowId: string;
   [key: string]: any;

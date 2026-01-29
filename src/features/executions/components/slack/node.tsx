@@ -2,6 +2,7 @@
 
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState } from "react";
+import { useParams } from "next/navigation";
 import { BaseExecutionNode } from "../base-execution-node";
 import { SlackDialog, SlackFormValues } from "./dialog";
 import { useNodeStatus } from "../../hooks/use-node-status";
@@ -13,11 +14,14 @@ type SlackNodeType = Node<SlackNodeData>;
 
 export const SlackNode = memo((props: NodeProps<SlackNodeType>) => {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const params = useParams();
+  const workflowId = params?.workflowId as string | undefined;
 
   const { setNodes } = useReactFlow();
 
   const nodeStatus = useNodeStatus({
     nodeId: props.id,
+    workflowId,
     channel: SLACK_CHANNEL_NAME,
     topic: "status",
     refreshToken: fetchSlackRealtimeToken,

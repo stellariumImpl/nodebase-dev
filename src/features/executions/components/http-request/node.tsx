@@ -3,6 +3,7 @@
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { GlobeIcon } from "lucide-react";
 import { memo, useState } from "react";
+import { useParams } from "next/navigation";
 import { BaseExecutionNode } from "../base-execution-node";
 import { HttpRequestDialog, HttpRequestFormValues } from "./dialog";
 import { useNodeStatus } from "../../hooks/use-node-status";
@@ -20,11 +21,14 @@ type HttpRequestNodeType = Node<HttpRequestNodeData>;
 
 export const HttpRequestNode = memo((props: NodeProps<HttpRequestNodeType>) => {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const params = useParams();
+  const workflowId = params?.workflowId as string | undefined;
 
   const { setNodes } = useReactFlow();
 
   const nodeStatus = useNodeStatus({
     nodeId: props.id,
+    workflowId,
     channel: HTTP_REQUEST_CHANNEL_NAME,
     // channel: httpRequestChannel().name,
     topic: "status",

@@ -2,6 +2,7 @@
 
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState } from "react";
+import { useParams } from "next/navigation";
 import { BaseExecutionNode } from "../base-execution-node";
 import { DeepSeekDialog, DeepSeekFormValues } from "./dialog";
 import { useNodeStatus } from "../../hooks/use-node-status";
@@ -13,11 +14,14 @@ type DeepSeekNodeType = Node<DeepSeekNodeData>;
 
 export const DeepSeekNode = memo((props: NodeProps<DeepSeekNodeType>) => {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const params = useParams();
+  const workflowId = params?.workflowId as string | undefined;
 
   const { setNodes } = useReactFlow();
 
   const nodeStatus = useNodeStatus({
     nodeId: props.id,
+    workflowId,
     channel: DEEPSEEK_CHANNEL_NAME,
     topic: "status",
     refreshToken: fetchDeepSeekRealtimeToken,
