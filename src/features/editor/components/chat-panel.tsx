@@ -44,6 +44,9 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const hasInitialScrollRef = useRef(false);
+  const lastUserMessageAtRef = useRef<Date | null>(null);
+
   // ✅ 当用户发送消息时，强制滚动到底部一次（即使用户在看历史）
   const forceScrollOnNextMessagesRef = useRef(false);
 
@@ -52,6 +55,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
   const [selectedCredentialId, setSelectedCredentialId] = useState<string>("");
   const [customBaseUrl, setCustomBaseUrl] = useState("");
   const [customApiKey, setCustomApiKey] = useState("");
+  const [isAwaitingAssistant, setIsAwaitingAssistant] = useState(false);
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -90,8 +94,51 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
   // 3. 发送消息 Mutation
   const sendMessage = useMutation(
     trpc.workflows.sendChatMessage.mutationOptions({
+      onMutate: async (variables) => {
+        const optimisticMessage: ChatMessage = {
+          id: `optimistic-${Date.now()}`,
+          role: "user",
+          content: variables.message,
+          workflowId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        lastUserMessageAtRef.current = optimisticMessage.createdAt;
+        setIsAwaitingAssistant(true);
+        setInput("");
+
+        await queryClient.cancelQueries({
+          queryKey: trpc.workflows.getChatMessages.queryKey({ workflowId }),
+        });
+
+        const previousMessages = queryClient.getQueryData<ChatMessage[]>(
+          trpc.workflows.getChatMessages.queryKey({ workflowId }),
+        );
+
+        queryClient.setQueryData<ChatMessage[]>(
+          trpc.workflows.getChatMessages.queryKey({ workflowId }),
+          (old) => [...(old ?? []), optimisticMessage],
+        );
+
+        return { previousMessages };
+      },
       onSuccess: () => {
         setInput("");
+        queryClient.invalidateQueries({
+          queryKey: trpc.workflows.getChatMessages.queryKey({ workflowId }),
+        });
+      },
+      onError: (_error, _variables, context) => {
+        if (context?.previousMessages) {
+          queryClient.setQueryData(
+            trpc.workflows.getChatMessages.queryKey({ workflowId }),
+            context.previousMessages,
+          );
+        }
+        setIsAwaitingAssistant(false);
+      },
+      onSettled: () => {
         queryClient.invalidateQueries({
           queryKey: trpc.workflows.getChatMessages.queryKey({ workflowId }),
         });
@@ -105,6 +152,12 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
   useEffect(() => {
     const viewport = getViewport();
     if (!viewport) return;
+
+    if (!hasInitialScrollRef.current && (messages?.length ?? 0) > 0) {
+      hasInitialScrollRef.current = true;
+      requestAnimationFrame(scrollToBottom);
+      return;
+    }
 
     // 如果刚刚发送过消息（用户主动交互），强制贴底一次
     if (forceScrollOnNextMessagesRef.current) {
@@ -121,6 +174,26 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
       requestAnimationFrame(scrollToBottom);
     }
   }, [messages, getViewport, scrollToBottom]);
+
+  useEffect(() => {
+    if (!isAwaitingAssistant || !messages?.length) return;
+
+    const lastUserMessageAt = lastUserMessageAtRef.current;
+    if (!lastUserMessageAt) return;
+
+    const hasAssistantReply = messages.some((message) => {
+      if (message.role !== "assistant") return false;
+      const createdAt =
+        message.createdAt instanceof Date
+          ? message.createdAt
+          : new Date(message.createdAt);
+      return createdAt > lastUserMessageAt;
+    });
+
+    if (hasAssistantReply) {
+      setIsAwaitingAssistant(false);
+    }
+  }, [isAwaitingAssistant, messages]);
 
   const handleSend = () => {
     const trimmed = input.trim();
@@ -314,10 +387,11 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
             </div>
           ))}
 
-          {sendMessage.isPending && (
-            <div className="flex flex-col items-end mb-4 opacity-50 animate-pulse">
-              <div className="bg-primary text-primary-foreground px-3 py-2 rounded-2xl rounded-tr-none text-[13px]">
-                正在发送请求...
+          {isAwaitingAssistant && (
+            <div className="flex flex-col items-start mb-4 text-muted-foreground">
+              <div className="flex items-center gap-2 bg-background border px-3 py-2 rounded-2xl rounded-tl-none text-[13px] shadow-sm">
+                <Loader2 className="size-4 animate-spin" />
+                AI 正在思考...
               </div>
             </div>
           )}
