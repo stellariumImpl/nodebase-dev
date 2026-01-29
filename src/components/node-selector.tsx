@@ -117,112 +117,58 @@ export function NodeSelector({
   const handleNodeSelect = useCallback(
     (selection: NodeTypeOption) => {
       const nodes = getNodes();
-      
-      // Check if trying to add a manual trigger when one already exists
-      if (selection.type === NodeType.MANUAL_TRIGGER) {
-        const hasManualTrigger = nodes.some(
-          (node) => node.type === NodeType.MANUAL_TRIGGER,
-        );
 
-        if (hasManualTrigger) {
-          toast.error("Only one manual trigger is allowed per workflow");
-          return;
-        }
-      }
+      // ---- 1) 定义：哪些算 trigger ----
+      const TRIGGER_TYPES = new Set<NodeType>([
+        NodeType.MANUAL_TRIGGER,
+        NodeType.CHAT_TRIGGER,
+        NodeType.GOOGLE_FORM_TRIGGER,
+        NodeType.STRIPE_TRIGGER,
+        // 如果未来还有更多 trigger，在这里补进去即可
+      ]);
 
-      // Check if trying to add a chat trigger when one already exists
-      if (selection.type === NodeType.CHAT_TRIGGER) {
-        const hasChatTrigger = nodes.some(
-          (node) => node.type === NodeType.CHAT_TRIGGER,
-        );
+      const isTrigger = (t: NodeType) => TRIGGER_TYPES.has(t);
+      const isManualTrigger = (t: NodeType) => t === NodeType.MANUAL_TRIGGER;
+      const isNonManualTrigger = (t: NodeType) =>
+        isTrigger(t) && !isManualTrigger(t);
 
-        if (hasChatTrigger) {
-          toast.error("Only one chat trigger is allowed per workflow");
-          return;
-        }
-      }
+      const hasManual = nodes.some((n) => n.type === NodeType.MANUAL_TRIGGER);
+      const hasAnyNonManualTrigger = nodes.some((n) =>
+        isNonManualTrigger(n.type as NodeType),
+      );
 
-      // Check if trying to add a Google Form trigger when one already exists
-      if (selection.type === NodeType.GOOGLE_FORM_TRIGGER) {
-        const hasGoogleFormTrigger = nodes.some(
-          (node) => node.type === NodeType.GOOGLE_FORM_TRIGGER,
-        );
-
-        if (hasGoogleFormTrigger) {
-          toast.error("Only one Google Form trigger is allowed per workflow");
-          return;
-        }
-      }
-
-      // Check if trying to add a Stripe Event trigger when one already exists
-      if (selection.type === NodeType.STRIPE_TRIGGER) {
-        const hasStripeTrigger = nodes.some(
-          (node) => node.type === NodeType.STRIPE_TRIGGER,
-        );
-
-        if (hasStripeTrigger) {
-          toast.error("Only one Stripe Event trigger is allowed per workflow");
-          return;
-        }
-      }
-
-      // IMPORTANT: If adding manual trigger, remove all other triggers
-      if (selection.type === NodeType.MANUAL_TRIGGER) {
-        const hasOtherTriggers = nodes.some(
-          (node) => 
-            node.type === NodeType.CHAT_TRIGGER ||
-            node.type === NodeType.GOOGLE_FORM_TRIGGER ||
-            node.type === NodeType.STRIPE_TRIGGER
-        );
-
-        if (hasOtherTriggers) {
-          toast.error("Manual trigger cannot coexist with other triggers. Removing existing triggers.");
-          // Remove all other triggers and keep only manual trigger
-          setNodes((nodes) => {
-            const filteredNodes = nodes.filter(
-              (node) => 
-                node.type !== NodeType.CHAT_TRIGGER &&
-                node.type !== NodeType.GOOGLE_FORM_TRIGGER &&
-                node.type !== NodeType.STRIPE_TRIGGER
-            );
-            
-            const centerX = window.innerWidth / 2;
-            const centerY = window.innerHeight / 2;
-            const flowPosition = screenToFlowPosition({
-              x: centerX + (Math.random() - 0.5) * 200,
-              y: centerY + (Math.random() - 0.5) * 200,
-            });
-
-            const manualTriggerNode = {
-              id: createId(),
-              data: {},
-              position: flowPosition,
-              type: NodeType.MANUAL_TRIGGER,
-            };
-
-            return [manualTriggerNode, ...filteredNodes];
-          });
-          onOpenChange(false);
-          return;
-        }
-      }
-
-      // If adding any other trigger, check if manual trigger exists
+      // ---- 2) 互斥规则：manual <-> 非manual ----
+      // 2.1 想加 manual：只要已有任意非manual trigger，就禁止
       if (
-        selection.type === NodeType.CHAT_TRIGGER ||
-        selection.type === NodeType.GOOGLE_FORM_TRIGGER ||
-        selection.type === NodeType.STRIPE_TRIGGER
+        selection.type === NodeType.MANUAL_TRIGGER &&
+        hasAnyNonManualTrigger
       ) {
-        const hasManualTrigger = nodes.some(
-          (node) => node.type === NodeType.MANUAL_TRIGGER,
+        toast.error(
+          "Manual trigger cannot coexist with other triggers. Remove other triggers first.",
         );
+        return;
+      }
 
-        if (hasManualTrigger) {
-          toast.error("Cannot add this trigger because manual trigger already exists");
+      // 2.2 想加非manual trigger：只要已有 manual，就禁止
+      if (isNonManualTrigger(selection.type) && hasManual) {
+        toast.error(
+          "Cannot add this trigger because manual trigger already exists. Remove manual trigger first.",
+        );
+        return;
+      }
+
+      // ---- 3) 你原本的“同类型 trigger 只能一个”规则（保留）----
+      if (isTrigger(selection.type)) {
+        const alreadyHasSameType = nodes.some(
+          (node) => node.type === selection.type,
+        );
+        if (alreadyHasSameType) {
+          toast.error("Only one of this trigger type is allowed per workflow");
           return;
         }
       }
 
+      // ---- 4) 原有添加节点逻辑保持不变 ----
       setNodes((nodes) => {
         const hasInitialTrigger = nodes.some(
           (node) => node.type === NodeType.INITIAL,

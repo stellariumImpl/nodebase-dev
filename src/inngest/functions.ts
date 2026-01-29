@@ -1,7 +1,11 @@
 import { NonRetriableError } from "inngest";
 import { inngest } from "./client";
 import prisma from "@/lib/prisma";
-import { topologicalSort, type SortableNode, type SortableConnection } from "./utils";
+import {
+  topologicalSort,
+  type SortableNode,
+  type SortableConnection,
+} from "./utils";
 import { ExecutionStatus, NodeType } from "@/generated/prisma/enums";
 import { getExecutor } from "@/features/executions/lib/executor-registry";
 import { httpRequestChannel } from "./channels/http-request";
@@ -368,6 +372,8 @@ export const executeWorkflow = inngest.createFunction(
 
     for (const node of sortedNodes) {
       const executor = getExecutor(node.type as NodeType);
+      const previousContext = context;
+
       context = await executor({
         data: node.data as Record<string, unknown>,
         nodeId: node.id,
@@ -377,37 +383,39 @@ export const executeWorkflow = inngest.createFunction(
         userId,
         workflowId,
       });
-    }
 
-    // Update status for the active trigger only
-    if (activeTrigger.type === NodeType.MANUAL_TRIGGER) {
-      await publish(
-        manualTriggerChannel().status({
-          nodeId: activeTrigger.id,
-          status: "success",
-        }),
-      );
-    } else if (activeTrigger.type === NodeType.CHAT_TRIGGER) {
-      await publish(
-        chatTriggerChannel().status({
-          nodeId: activeTrigger.id,
-          status: "success",
-        }),
-      );
-    } else if (activeTrigger.type === NodeType.GOOGLE_FORM_TRIGGER) {
-      await publish(
-        googleFormTriggerChannel().status({
-          nodeId: activeTrigger.id,
-          status: "success",
-        }),
-      );
-    } else if (activeTrigger.type === NodeType.STRIPE_TRIGGER) {
-      await publish(
-        stripeTriggerChannel().status({
-          nodeId: activeTrigger.id,
-          status: "success",
-        }),
-      );
+      // 如果当前节点是 active trigger，并且执行成功，立即更新状态
+      if (node.id === activeTrigger.id) {
+        if (activeTrigger.type === NodeType.MANUAL_TRIGGER) {
+          await publish(
+            manualTriggerChannel().status({
+              nodeId: activeTrigger.id,
+              status: "success",
+            }),
+          );
+        } else if (activeTrigger.type === NodeType.CHAT_TRIGGER) {
+          await publish(
+            chatTriggerChannel().status({
+              nodeId: activeTrigger.id,
+              status: "success",
+            }),
+          );
+        } else if (activeTrigger.type === NodeType.GOOGLE_FORM_TRIGGER) {
+          await publish(
+            googleFormTriggerChannel().status({
+              nodeId: activeTrigger.id,
+              status: "success",
+            }),
+          );
+        } else if (activeTrigger.type === NodeType.STRIPE_TRIGGER) {
+          await publish(
+            stripeTriggerChannel().status({
+              nodeId: activeTrigger.id,
+              status: "success",
+            }),
+          );
+        }
+      }
     }
 
     await step.run("update-execution", async () => {
