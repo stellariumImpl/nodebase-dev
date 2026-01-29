@@ -2,6 +2,7 @@ import { NonRetriableError } from "inngest";
 import { inngest } from "./client";
 import prisma from "@/lib/prisma";
 import {
+  getReachableNodeIds,
   topologicalSort,
   type SortableNode,
   type SortableConnection,
@@ -355,10 +356,23 @@ export const executeWorkflow = inngest.createFunction(
       );
     }
 
-    const sortedNodes = topologicalSort(
+    const reachableNodeIds = getReachableNodeIds(
       workflowWithNodes.nodes,
       workflowWithNodes.connections,
+      activeTrigger.id,
     );
+
+    const reachableNodes = workflowWithNodes.nodes.filter((node) =>
+      reachableNodeIds.has(node.id),
+    );
+
+    const reachableConnections = workflowWithNodes.connections.filter(
+      (connection) =>
+        reachableNodeIds.has(connection.fromNodeId) &&
+        reachableNodeIds.has(connection.toNodeId),
+    );
+
+    const sortedNodes = topologicalSort(reachableNodes, reachableConnections);
 
     const userId = await step.run("find-user-id", async () => {
       const workflow = await prisma.workflow.findUniqueOrThrow({
