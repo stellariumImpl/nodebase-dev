@@ -22,20 +22,20 @@ export function useNodeStatus({
   refreshToken,
 }: UseNodeStatusOptions) {
   const [status, setStatus] = useState<NodeStatus>("initial");
-  const resetCounter = useAtomValue(nodeStatusResetAtom);
+  const lastResetTime = useAtomValue(nodeStatusResetAtom);
   const { data } = useInngestSubscription({
     refreshToken,
     enabled: true,
   });
   
   // Track the last reset time to filter messages
-  const lastResetTimeRef = useRef<number>(Date.now());
+  const lastResetTimeRef = useRef<number>(0);
 
   // Reset status when workflow execution starts
   useEffect(() => {
     setStatus("initial");
-    lastResetTimeRef.current = Date.now();
-  }, [resetCounter]);
+    lastResetTimeRef.current = lastResetTime;
+  }, [lastResetTime]);
 
   useEffect(() => {
     if (!data?.length) {

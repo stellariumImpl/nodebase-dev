@@ -13,7 +13,6 @@ export const useWorkflowReset = (workflowId: string) => {
     enabled: true,
   });
 
-  const startedAt = useRef<number>(Date.now());
   const lastExecutionIdRef = useRef<string | null>(null);
 
   const latestReset = useMemo(() => {
@@ -49,6 +48,6 @@ export const useWorkflowReset = (workflowId: string) => {
     }
 
     lastExecutionIdRef.current = latestReset.data.executionId;
-    triggerNodeStatusReset();
+    triggerNodeStatusReset(new Date(latestReset.createdAt).getTime());
   }, [latestReset, triggerNodeStatusReset]);
 };

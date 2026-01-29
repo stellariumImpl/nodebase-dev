@@ -1,13 +1,12 @@
 import { atom } from "jotai";
 
-// Global atom to track when workflow execution starts
+// Global atom to track the latest workflow reset timestamp
 export const nodeStatusResetAtom = atom<number>(0);
 
 // Function to trigger reset of all node statuses
 export const triggerNodeStatusResetAtom = atom(
   null,
-  (get, set) => {
-    const current = get(nodeStatusResetAtom);
-    set(nodeStatusResetAtom, current + 1);
+  (_get, set, resetTime?: number) => {
+    set(nodeStatusResetAtom, resetTime ?? Date.now());
   }
 );
