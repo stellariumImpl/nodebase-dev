@@ -405,17 +405,17 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
         </ReactFlow>
       </div>
 
-      {/* ✅ 右侧：侧边栏布局（修复显示不全） */}
+      {/* 右侧：侧边栏布局 - 修复显示不全问题 */}
       <div
         className={cn(
-          // 注意：这里不要在基础 class 放 overflow-hidden
-          "h-full border-l bg-muted/5 transition-all duration-300 ease-in-out shrink-0",
+          "h-full border-l bg-muted/5 transition-all duration-300 ease-in-out",
           isChatOpen
-            ? // ✅ 用 clamp + 百分比（相对父容器），且展开态不要裁剪
-              "w-[clamp(360px,32%,520px)] opacity-100 overflow-visible min-w-0"
-            : // ✅ 关闭态才 overflow-hidden
-              "w-0 opacity-0 overflow-hidden border-l-0",
+            ? "w-[400px] lg:w-[500px] xl:w-[600px] opacity-100"
+            : "w-0 opacity-0 overflow-hidden border-l-0",
         )}
+        style={{
+          maxWidth: "35vw", // 确保不会太宽
+        }}
       >
         {isChatOpen && (
           <ChatPanel

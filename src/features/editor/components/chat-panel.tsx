@@ -152,6 +152,18 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     const viewport = getViewport();
     if (!viewport) return;
 
+    // 修复1：给 viewport 添加 padding，确保内容不会被滚动条遮挡
+    viewport.style.paddingRight = "16px";
+    viewport.style.paddingLeft = "16px"; // 如果需要左右对称
+    viewport.style.boxSizing = "border-box";
+
+    // 修复2：确保内容容器也有正确的宽度
+    const content = viewport.firstElementChild as HTMLElement;
+    if (content) {
+      content.style.width = "100%";
+      content.style.boxSizing = "border-box";
+    }
+
     if (!hasInitialScrollRef.current && (messages?.length ?? 0) > 0) {
       hasInitialScrollRef.current = true;
       requestAnimationFrame(scrollToBottom);
@@ -351,50 +363,35 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
         </div>
       </div>
 
-      {/*  关键：不要在 ScrollArea 根节点上加 p-4（容易让滚动条覆盖内容）
-          改为在内部内容容器加 padding，并额外加 pr-6 让内容永远不被右侧滚动条遮住 */}
-      <ScrollArea ref={scrollRef} className="flex-1 min-h-0 bg-dot-pattern">
-        <div className="p-4 pr-6 min-w-0">
-          <div className="flex flex-col min-h-full min-w-0">
-            {isLoading && (
-              <div className="text-center text-xs text-muted-foreground mt-4 italic">
-                同步历史记录...
-              </div>
-            )}
-
-            {messages?.map((m: ChatMessage) => (
+      <ScrollArea ref={scrollRef} className="flex-1 min-h-0 w-full">
+        {/* 内容容器使用专门的类名控制宽度 */}
+        <div className="p-4 pr-8 pl-4 w-full max-w-full box-border">
+          {/* 消息内容 */}
+          {messages?.map((m: ChatMessage) => (
+            <div
+              key={m.id}
+              className={cn(
+                "mb-4 w-full flex max-w-full", // 添加 max-w-full
+                m.role === "user" ? "justify-end" : "justify-start",
+              )}
+            >
               <div
-                key={m.id}
                 className={cn(
-                  "mb-4 flex flex-col min-w-0",
-                  m.role === "user" ? "items-end" : "items-start",
+                  "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm wrap-break-word",
+                  "max-w-[calc(100%-0rem)]", // 关键：确保不超过容器宽度
+                  m.role === "user"
+                    ? "bg-primary text-primary-foreground rounded-tr-none"
+                    : "bg-background border rounded-tl-none text-foreground",
                 )}
+                style={{
+                  wordBreak: "break-word", // 确保长单词也能换行
+                  overflowWrap: "break-word",
+                }}
               >
-                <div
-                  className={cn(
-                    "px-3 py-2 rounded-2xl text-[13px] leading-relaxed max-w-[90%] shadow-sm break-words",
-                    m.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-tr-none"
-                      : "bg-background border rounded-tl-none text-foreground",
-                  )}
-                >
-                  {m.content}
-                </div>
-                <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                  {m.role === "user" ? "你" : "AI 助手"}
-                </span>
+                {m.content}
               </div>
-            ))}
-
-            {isAwaitingAssistant && (
-              <div className="flex flex-col items-start mb-4 text-muted-foreground">
-                <div className="flex items-center gap-2 bg-background border px-3 py-2 rounded-2xl rounded-tl-none text-[13px] shadow-sm">
-                  <Loader2 className="size-4 animate-spin" />
-                  AI 正在思考...
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          ))}
         </div>
       </ScrollArea>
 
