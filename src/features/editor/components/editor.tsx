@@ -50,6 +50,8 @@ import { Button } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 
+import { useWorkflowReset } from "@/features/executions/hooks/use-workflow-reset";
+
 export const EditorLoading = () => {
   return <LoadingView message="Loading editor..." />;
 };
@@ -108,6 +110,7 @@ const EditorSaveStatusPanel = () => {
 };
 
 export const Editor = ({ workflowId }: { workflowId: string }) => {
+  useWorkflowReset(workflowId);
   const { data: workflow } = useSuspenseWorkflow(workflowId);
 
   // 侧边栏显示状态（后续考虑放进 Jotai atom 统一管理）
@@ -167,6 +170,10 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
 
   const hasManualTrigger = useMemo(() => {
     return nodes.some((node) => node.type === NodeType.MANUAL_TRIGGER);
+  }, [nodes]);
+
+  const hasChatTrigger = useMemo(() => {
+    return nodes.some((node) => node.type === NodeType.CHAT_TRIGGER);
   }, [nodes]);
 
   const snapshot = useMemo(() => {
@@ -336,18 +343,20 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
           {/* 右上角：添加节点按钮 */}
           <Panel position="top-right" className="flex flex-col gap-2">
             <AddNodeButton />
-            {/* 新增：侧边栏开关按钮 */}
-            <Button
-              variant="secondary"
-              size="icon"
-              className={cn(
-                "shadow-md border",
-                isChatOpen && "bg-primary text-primary-foreground",
-              )}
-              onClick={() => setIsChatOpen(!isChatOpen)}
-            >
-              <Bot className="size-4" />
-            </Button>
+            {/* 新增：侧边栏开关按钮 - 只在有 chat trigger 时显示 */}
+            {hasChatTrigger && (
+              <Button
+                variant="secondary"
+                size="icon"
+                className={cn(
+                  "shadow-md border",
+                  isChatOpen && "bg-primary text-primary-foreground",
+                )}
+                onClick={() => setIsChatOpen(!isChatOpen)}
+              >
+                <Bot className="size-4" />
+              </Button>
+            )}
           </Panel>
 
           {/* 移动端适配：窄屏下的 MiniMap 逻辑 */}

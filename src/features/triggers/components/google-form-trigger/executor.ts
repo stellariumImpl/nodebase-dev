@@ -5,7 +5,15 @@ type GoogleFormTriggerData = Record<string, unknown>;
 
 export const GoogleFormTriggerExecutor: NodeExecutor<
   GoogleFormTriggerData
-> = async ({ nodeId, context, step, publish }) => {
+> = async ({ nodeId, context, step, publish, workflowId }) => {
+  // Check if this is the active trigger for this execution
+  const isActiveTrigger = context.trigger?.type === "google-form";
+  
+  if (!isActiveTrigger) {
+    // Skip execution if this is not the active trigger
+    return context;
+  }
+
   await publish(
     googleFormTriggerChannel().status({
       nodeId,

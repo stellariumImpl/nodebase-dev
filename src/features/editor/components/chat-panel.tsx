@@ -56,16 +56,18 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
-  // 1. 获取消息历史
+  // 1. 获取消息历史 - 优化轮询频率
   const { data: messages, isLoading } = useQuery(
     trpc.workflows.getChatMessages.queryOptions(
       { workflowId },
-      { refetchInterval: 3000 },
+      {
+        refetchInterval: 1500, // 从3秒改为1.5秒，减少延迟感
+        staleTime: 0, // 立即过期，强制重新获取
+      },
     ),
   );
 
   // 2. 获取用户现有的凭证列表
-  // 稳扎稳打：只获取与 AI 相关的凭证（假设通过名称或类型筛选）
   const { data: credentialsData } = useQuery(
     trpc.credentials.getMany.queryOptions({ pageSize: 50 }),
   );
@@ -124,7 +126,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     const trimmed = input.trim();
     if (!trimmed || sendMessage.isPending) return;
 
-    // ✅ 关键：用户主动发送 -> 下一次 messages 更新时强制贴底
+    // 用户主动发送 -> 下一次 messages 更新时强制贴底
     forceScrollOnNextMessagesRef.current = true;
 
     // 组装 AI 配置参数
@@ -139,7 +141,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
     sendMessage.mutate({
       workflowId,
       message: trimmed,
-      aiConfig: { credentialId: selectedCredentialId || undefined },
+      aiConfig,
     });
 
     // 也可以立即滚一次（更“即时”），不等轮询回来

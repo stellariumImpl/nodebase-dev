@@ -13,11 +13,9 @@ import { workflowResetChannel } from "./channels/workflow-reset";
 import { discordChannel } from "./channels/discord";
 import { slackChannel } from "./channels/slack";
 
-import { createOpenAI } from "@ai-sdk/openai";
-import { createDeepSeek } from "@ai-sdk/deepseek"; // ✅ 导入专用驱动
-import { generateText } from "ai";
-import { decrypt } from "@/lib/encryption";
 import { CredentialType } from "@/generated/prisma/enums";
+
+import { chatTriggerChannel } from "./channels/chat-trigger";
 
 const OFFICIAL_URL_MAP: Partial<Record<CredentialType, string>> = {
   [CredentialType.DEEPSEEK]: "https://api.deepseek.com",
@@ -159,7 +157,7 @@ export const handleChatMessage = inngest.createFunction(
   { id: "handle-chat-message" },
   { event: "chat/message.sent" },
   async ({ event, step }) => {
-    const { workflowId, message } = event.data;
+    const { workflowId, message, userId, aiConfig } = event.data;
 
     // 1. Agent 规划
     const analysis = await step.run("agent-plan", async () => {
@@ -186,7 +184,17 @@ export const handleChatMessage = inngest.createFunction(
         name: "workflow/execute.workflow",
         data: {
           workflowId,
-          initialData: { message },
+          initialData: {
+            message,
+            aiConfig,
+            trigger: {
+              type: "chat",
+              source: "chat-panel",
+              workflowId,
+              userId,
+              message,
+            },
+          },
         },
       });
     }
@@ -237,6 +245,7 @@ export const executeWorkflow = inngest.createFunction(
       workflowResetChannel(),
       discordChannel(),
       slackChannel(),
+      chatTriggerChannel(),
     ],
   },
   async ({ event, step, publish }) => {
@@ -254,15 +263,90 @@ export const executeWorkflow = inngest.createFunction(
       });
     });
 
-    await publish(workflowResetChannel().reset({ workflowId, executionId }));
-
-    const sortedNodes = await step.run("prepare-workflow", async () => {
-      const workflow = await prisma.workflow.findUniqueOrThrow({
+    const workflowWithNodes = await step.run("prepare-workflow", async () => {
+      return prisma.workflow.findUniqueOrThrow({
         where: { id: workflowId },
         include: { nodes: true, connections: true },
       });
-      return topologicalSort(workflow.nodes, workflow.connections);
     });
+
+    // Determine the active trigger based on event source
+    const eventTriggerType = event.data.initialData?.trigger?.type;
+    const activeTriggerNode = workflowWithNodes.nodes.find((node) => {
+      if (
+        eventTriggerType === "manual" &&
+        node.type === NodeType.MANUAL_TRIGGER
+      ) {
+        return true;
+      }
+      if (eventTriggerType === "chat" && node.type === NodeType.CHAT_TRIGGER) {
+        return true;
+      }
+      if (
+        eventTriggerType === "google-form" &&
+        node.type === NodeType.GOOGLE_FORM_TRIGGER
+      ) {
+        return true;
+      }
+      if (
+        eventTriggerType === "stripe" &&
+        node.type === NodeType.STRIPE_TRIGGER
+      ) {
+        return true;
+      }
+      return false;
+    });
+
+    // If no specific trigger found in event data, use the first trigger node
+    const triggerNodes = workflowWithNodes.nodes.filter(
+      (node) =>
+        node.type === NodeType.MANUAL_TRIGGER ||
+        node.type === NodeType.CHAT_TRIGGER ||
+        node.type === NodeType.GOOGLE_FORM_TRIGGER ||
+        node.type === NodeType.STRIPE_TRIGGER,
+    );
+
+    const activeTrigger = activeTriggerNode || triggerNodes[0];
+
+    if (!activeTrigger) {
+      throw new NonRetriableError("No valid trigger found in workflow");
+    }
+
+    // Publish status update for the active trigger only
+    if (activeTrigger.type === NodeType.MANUAL_TRIGGER) {
+      await publish(
+        manualTriggerChannel().status({
+          nodeId: activeTrigger.id,
+          status: "loading",
+        }),
+      );
+    } else if (activeTrigger.type === NodeType.CHAT_TRIGGER) {
+      await publish(
+        chatTriggerChannel().status({
+          nodeId: activeTrigger.id,
+          status: "loading",
+        }),
+      );
+    } else if (activeTrigger.type === NodeType.GOOGLE_FORM_TRIGGER) {
+      await publish(
+        googleFormTriggerChannel().status({
+          nodeId: activeTrigger.id,
+          status: "loading",
+        }),
+      );
+    } else if (activeTrigger.type === NodeType.STRIPE_TRIGGER) {
+      await publish(
+        stripeTriggerChannel().status({
+          nodeId: activeTrigger.id,
+          status: "loading",
+        }),
+      );
+    }
+
+    const sortedNodes = topologicalSort(
+      workflowWithNodes.nodes,
+      workflowWithNodes.connections,
+    );
 
     const userId = await step.run("find-user-id", async () => {
       const workflow = await prisma.workflow.findUniqueOrThrow({
@@ -285,6 +369,37 @@ export const executeWorkflow = inngest.createFunction(
         userId,
         workflowId,
       });
+    }
+
+    // Update status for the active trigger only
+    if (activeTrigger.type === NodeType.MANUAL_TRIGGER) {
+      await publish(
+        manualTriggerChannel().status({
+          nodeId: activeTrigger.id,
+          status: "success",
+        }),
+      );
+    } else if (activeTrigger.type === NodeType.CHAT_TRIGGER) {
+      await publish(
+        chatTriggerChannel().status({
+          nodeId: activeTrigger.id,
+          status: "success",
+        }),
+      );
+    } else if (activeTrigger.type === NodeType.GOOGLE_FORM_TRIGGER) {
+      await publish(
+        googleFormTriggerChannel().status({
+          nodeId: activeTrigger.id,
+          status: "success",
+        }),
+      );
+    } else if (activeTrigger.type === NodeType.STRIPE_TRIGGER) {
+      await publish(
+        stripeTriggerChannel().status({
+          nodeId: activeTrigger.id,
+          status: "success",
+        }),
+      );
     }
 
     await step.run("update-execution", async () => {
