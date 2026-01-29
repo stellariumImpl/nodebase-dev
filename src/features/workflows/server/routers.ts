@@ -88,10 +88,17 @@ export const WorkflowsRouter = createTRPCRouter({
       });
 
       return await prisma.$transaction(async (tx) => {
+        // 先删除所有现有连接，避免外键约束
+        await tx.connection.deleteMany({
+          where: { workflowId: id },
+        });
+
+        // 然后删除所有现有节点
         await tx.node.deleteMany({
           where: { workflowId: id },
         });
 
+        // 创建新节点
         await tx.node.createMany({
           data: nodes.map((node) => ({
             id: node.id,
@@ -103,6 +110,7 @@ export const WorkflowsRouter = createTRPCRouter({
           })),
         });
 
+        // 创建新连接（此时节点已经存在）
         await tx.connection.createMany({
           data: edges.map((edge) => ({
             workflowId: id,

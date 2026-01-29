@@ -27,8 +27,7 @@ export const useWorkflowReset = (workflowId: string) => {
           msg.kind === "data" &&
           msg.channel === WORKFLOW_RESET_CHANNEL_NAME &&
           msg.topic === "reset" &&
-          msg.data.workflowId === workflowId &&
-          new Date(msg.createdAt).getTime() > startedAt.current,
+          msg.data.workflowId === workflowId,
       )
       .sort((a, b) => {
         if (a.kind === "data" && b.kind === "data") {

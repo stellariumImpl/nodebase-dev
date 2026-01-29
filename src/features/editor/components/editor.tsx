@@ -176,6 +176,13 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
     return nodes.some((node) => node.type === NodeType.CHAT_TRIGGER);
   }, [nodes]);
 
+  // 当 chat trigger 被删除时，自动关闭聊天面板
+  useEffect(() => {
+    if (!hasChatTrigger && isChatOpen) {
+      setIsChatOpen(false);
+    }
+  }, [hasChatTrigger, isChatOpen]);
+
   const snapshot = useMemo(() => {
     return serializeWorkflowSnapshot(nodes, edges);
   }, [nodes, edges]);

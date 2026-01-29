@@ -16,27 +16,13 @@ export const chatTriggerExecutor: NodeExecutor<ChatTriggerData> = async ({
 }) => {
   // Check if this is the active trigger for this execution
   const isActiveTrigger = context.trigger?.type === "chat";
-  
+
   if (!isActiveTrigger) {
     // Skip execution if this is not the active trigger
     return context;
   }
 
-  await publish(
-    chatTriggerChannel().status({
-      nodeId,
-      status: "loading",
-    }),
-  );
-
   const result = await step.run("chat-trigger", async () => context);
-
-  await publish(
-    chatTriggerChannel().status({
-      nodeId,
-      status: "success",
-    }),
-  );
 
   return result;
 };

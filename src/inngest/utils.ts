@@ -6,11 +6,36 @@ import toposort from "toposort";
 import { inngest } from "./client";
 import { createId } from "@paralleldrive/cuid2";
 
+// 定义一个简化的节点类型，用于拓扑排序
+export type SortableNode = {
+  id: string;
+  name: string;
+  type: import("@/generated/prisma/enums").NodeType;
+  position: any;
+  data: any;
+  workflowId: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  credentialId: string | null;
+};
+
+// 定义一个简化的连接类型，用于拓扑排序
+export type SortableConnection = {
+  id: string;
+  workflowId: string;
+  fromNodeId: string;
+  toNodeId: string;
+  fromOutput: string | null;
+  toInput: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+};
+
 export const topologicalSort = (
-  nodes: Node[],
-  connections: Connection[],
+  nodes: SortableNode[],
+  connections: SortableConnection[],
   // 占位符
-): Node[] => {
+): SortableNode[] => {
   // 如果没有connections, 就只返回nodes（因为它们都是独立的）
   if (connections.length === 0) {
     return nodes;

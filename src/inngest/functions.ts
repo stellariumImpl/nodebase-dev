@@ -1,7 +1,7 @@
 import { NonRetriableError } from "inngest";
 import { inngest } from "./client";
 import prisma from "@/lib/prisma";
-import { topologicalSort } from "./utils";
+import { topologicalSort, type SortableNode, type SortableConnection } from "./utils";
 import { ExecutionStatus, NodeType } from "@/generated/prisma/enums";
 import { getExecutor } from "@/features/executions/lib/executor-registry";
 import { httpRequestChannel } from "./channels/http-request";
@@ -256,6 +256,14 @@ export const executeWorkflow = inngest.createFunction(
     if (!inngestEventId || !workflowId) {
       throw new NonRetriableError("Event ID or Workflow ID is missing");
     }
+
+    // 发送工作流重置消息，通知前端重置节点状态
+    await publish(
+      workflowResetChannel().reset({
+        workflowId,
+        executionId,
+      }),
+    );
 
     await step.run("create-execution", async () => {
       return prisma.execution.create({
