@@ -410,7 +410,7 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
         className={cn(
           "h-full border-l bg-muted/5 transition-all duration-300 ease-in-out overflow-hidden shrink-0",
           isChatOpen
-            ? "w-[400px] opacity-100"
+            ? "w-[32vw] min-w-[360px] max-w-[520px] opacity-100"
             : "w-0 opacity-0 overflow-hidden border-l-0",
         )}
       >
