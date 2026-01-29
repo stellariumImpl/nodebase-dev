@@ -222,7 +222,7 @@ export const ChatPanel = ({ workflowId, onClose }: ChatPanelProps) => {
       <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20 shrink-0">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary animate-pulse" />
-          <h2 className="text-sm font-bold tracking-tight">AI Agent Copilot</h2>
+          <h2 className="text-sm font-bold tracking-tight">Chat Field</h2>
         </div>
 
         <div className="flex items-center gap-1">

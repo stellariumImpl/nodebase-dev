@@ -347,10 +347,10 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
           <Controls />
           <MiniMap className="hidden sm:block" />
           <EditorSaveStatusPanel />
+
           {/* 右上角：添加节点按钮 */}
           <Panel position="top-right" className="flex flex-col gap-2">
             <AddNodeButton />
-            {/* 新增：侧边栏开关按钮 - 只在有 chat trigger 时显示 */}
             {hasChatTrigger && (
               <Button
                 variant="secondary"
@@ -405,16 +405,18 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
         </ReactFlow>
       </div>
 
-      {/* 右侧：成熟的侧边栏布局 */}
+      {/* ✅ 右侧：侧边栏布局（修复显示不全） */}
       <div
         className={cn(
-          "h-full border-l bg-muted/5 transition-all duration-300 ease-in-out overflow-hidden shrink-0",
+          // 注意：这里不要在基础 class 放 overflow-hidden
+          "h-full border-l bg-muted/5 transition-all duration-300 ease-in-out shrink-0",
           isChatOpen
-            ? "w-[32vw] min-w-[360px] max-w-[520px] opacity-100"
-            : "w-0 opacity-0 overflow-hidden border-l-0",
+            ? // ✅ 用 clamp + 百分比（相对父容器），且展开态不要裁剪
+              "w-[clamp(360px,32%,520px)] opacity-100 overflow-visible min-w-0"
+            : // ✅ 关闭态才 overflow-hidden
+              "w-0 opacity-0 overflow-hidden border-l-0",
         )}
       >
-        {/* 只有在展开时才渲染内容，节省性能 */}
         {isChatOpen && (
           <ChatPanel
             workflowId={workflowId}
