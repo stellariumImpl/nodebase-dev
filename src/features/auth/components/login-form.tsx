@@ -38,6 +38,13 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+/**
+ * Renders the Nodebase login form with email/password fields, social sign-in buttons, and links for registration, terms, and privacy.
+ *
+ * Submits credentials to the authentication client; on success navigates to "/", and on error displays an error toast. Form validation is performed via the configured schema.
+ *
+ * @returns A JSX element containing the complete login form UI.
+ */
 export function LoginForm() {
   const router = useRouter();
   const form = useForm<LoginFormValues>({

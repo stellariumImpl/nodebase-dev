@@ -11,6 +11,14 @@ interface LoginRegisterButtonProps
   isPending?: boolean;
 }
 
+/**
+ * Render a themed Button with a mouse-following radial glow and an optional pending state.
+ *
+ * @param children - Button content displayed when not pending
+ * @param className - Additional CSS class names merged into the button's classes
+ * @param isPending - When `true`, disables the button and shows the label "pending..."
+ * @returns A styled Button element that updates CSS variables on mouse movement to position a radial glow and conditionally shows a pending label
+ */
 export function LoginRegisterButton({
   children,
   className,
